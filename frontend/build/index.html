@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lectoria - Book Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 15px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .status {
+            color: #4CAF50;
+            font-size: 1.3em;
+            margin: 30px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .status::before {
+            content: '✅';
+            font-size: 1.2em;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .info-card {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .endpoint-list {
+            list-style: none;
+            text-align: left;
+        }
+        
+        .endpoint-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .endpoint-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .method {
+            color: #ff6b6b;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .login-info {
+            background: #e8f5e8;
+            border-left-color: #4CAF50;
+        }
+        
+        .login-info p {
+            margin: 5px 0;
+            font-size: 1.1em;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+        }
+        
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .upload-test {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+            margin-top: 20px;
+        }
+        
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">L</div>
+        
+        <h1>Lectoria BookManager</h1>
+        <p style="color: #666; font-size: 1.1em;">Digital Book & Magazine Management System</p>
+        
+        <div class="status">Backend Server Running Successfully</div>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>🔗 API Endpoints</h3>
+                <ul class="endpoint-list">
+                    <li><span class="method">POST</span>/api/auth/login</li>
+                    <li><span class="method">POST</span>/api/auth/register</li>
+                    <li><span class="method">GET</span>/api/books</li>
+                    <li><span class="method">POST</span>/api/books/upload</li>
+                    <li><span class="method">POST</span>/api/books/:id/share</li>
+                    <li><span class="method">GET</span>/api/share/:token</li>
+                </ul>
+            </div>
+            
+            <div class="info-card login-info">
+                <h3>🔐 Default Login</h3>
+                <p><strong>Username:</strong> admin</p>
+                <p><strong>Password:</strong> admin123</p>
+                <p><strong>Role:</strong> Administrator</p>
+            </div>
+        </div>
+        
+        <div class="info-card upload-test">
+            <h3>📚 Test File Upload</h3>
+            <p>Use API testing tools like Postman or curl to test upload functionality:</p>
+            <div style="margin: 15px 0; font-family: 'Courier New', monospace; background: #f4f4f4; padding: 10px; border-radius: 5px; font-size: 0.85em;">
+                curl -X POST http://localhost:3000/api/books/upload \<br>
+                -H "Authorization: Bearer YOUR_JWT_TOKEN" \<br>
+                -F "file=@yourbook.pdf" \<br>
+                -F "title=Test Book" \<br>
+                -F "author=Test Author"
+            </div>
+            <button class="test-button" onclick="window.open('/api/share/demo', '_blank')">Test Share Link</button>
+            <button class="test-button" onclick="testLogin()">Test Login API</button>
+        </div>
+        
+        <div class="footer">
+            <p>Created by <a href="https://github.com/chicohaager/lectoria" target="_blank">@chicohaager</a></p>
+            <p style="margin-top: 10px;">
+                <strong>Features:</strong> JWT Authentication • File Upload Security • Shareable Links • Rate Limiting
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        async function testLogin() {
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Login successful! Token: ' + data.token.substring(0, 20) + '...');
+                } else {
+                    alert('❌ Login failed: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Connection error: ' + error.message);
+            }
+        }
+        
+        // Show current time
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            document.title = `Lectoria - ${timeStr}`;
+        }
+        
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+</html>

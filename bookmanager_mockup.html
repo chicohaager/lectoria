@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookManager - Mockup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/material-design-icons/4.0.0/iconfont/material-icons.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Language Switcher */
+        .language-switcher {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .lang-btn {
+            background: transparent;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin: 0 2px;
+        }
+
+        .lang-btn.active {
+            background: #1976d2;
+            color: white;
+        }
+
+        .lang-btn:hover:not(.active) {
+            background: rgba(25, 118, 210, 0.1);
+        }
+
+        /* Navigation */
+        .navbar {
+            background: #1976d2;
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            background: #dc004e;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        /* Login Screen */
+        .login-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-card {
+            background: white;
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-icon {
+            font-size: 4rem;
+            color: #1976d2;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #1565c0;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 2rem 0;
+            min-height: calc(100vh - 80px);
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .page-subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Search and Filter */
+        .search-filter {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .filter-select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            min-width: 150px;
+        }
+
+        /* Book Grid */
+        .books-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .book-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .book-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        /* Book Preview Image */
+        .book-preview {
+            height: 200px;
+            background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .book-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .book-preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: #999;
+        }
+
+        .book-preview-placeholder .material-icons {
+            font-size: 3rem;
+        }
+
+        .book-category {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+        }
+
+        .book-header {
+            padding: 1.5rem 1.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .book-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .book-icon.book { background: #1976d2; }
+        .book-icon.magazine { background: #dc004e; }
+
+        .book-type {
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .book-type.book {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .book-type.magazine {
+            background: #fce4ec;
+            color: #dc004e;
+        }
+
+        .book-content {
+            padding: 0 1.5rem 1rem;
+        }
+
+        .book-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .book-author {
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .book-description {
+            color: #777;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .book-meta {
+            font-size: 0.8rem;
+            color: #999;
+            margin-bottom: 0.5rem;
+        }
+
+        .book-actions {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #1976d2;
+            color: #1976d2;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-outline:hover {
+            background: #1976d2;
+            color: white;
+        }
+
+        .btn-danger {
+            background: transparent;
+            border: 2px solid #f44336;
+            color: #f44336;
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-danger:hover {
+            background: #f44336;
+            color: white;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .drop-zone {
+            border: 3px dashed #e0e0e0;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .drop-zone:hover {
+            border-color: #1976d2;
+            background: rgba(25, 118, 210, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #1976d2;
+            margin-bottom: 1rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-row.full {
+            grid-template-columns: 1fr;
+        }
+
+        /* Categories Management */
+        .categories-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .category-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .category-item {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .category-item:hover {
+            background: #e9ecef;
+        }
+
+        .category-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .add-category {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .add-category input {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* User Management */
+        .users-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .table td {
+            padding: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+
+        .user-info-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #1976d2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .user-avatar.admin {
+            background: #dc004e;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-menu {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .search-filter {
+                flex-direction: column;
+            }
+
+            .books-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .table-responsive {
+                overflow-x: auto;
+            }
+
+            .language-switcher {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 1rem;
+            }
+
+            .add-category {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+        /* States */
+        .hidden {
+            display: none !important;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 5rem;
+            color: #ccc;
+            margin-bottom: 1rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1976d2;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Language Switcher -->
+    <div class="language-switcher">
+        <button class="lang-btn active" onclick="setLanguage('de')">DE</button>
+        <button class="lang-btn" onclick="setLanguage('en')">EN</button>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="material-icons login-icon">local_library</div>
+            <h1 class="login-title" style="margin-bottom: 0.5rem;">BookManager</h1>
+            <p class="login-subtitle" style="color: #666; margin-bottom: 2rem;">Ihre digitale Bibliothek für Bücher und Magazine</p>
+            
+            <div class="form-group">
+                <label class="username-label">Benutzername</label>
+                <input type="text" class="form-input" placeholder="admin" value="admin">
+            </div>
+            
+            <div class="form-group">
+                <label class="password-label">Passwort</label>
+                <input type="password" class="form-input" placeholder="••••••••" value="admin123">
+            </div>
+            
+            <button class="btn-primary login-btn" onclick="login()">Anmelden</button>
+            
+            <p class="default-admin-text" style="margin-top: 1rem; font-size: 0.9rem; color: #999;">
+                Standard Admin: admin / admin123
+            </p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-content">
+                    <div class="nav-brand">
+                        <span class="material-icons">local_library</span>
+                        BookManager
+                    </div>
+                    
+                    <div class="nav-menu">
+                        <button class="nav-btn active" onclick="showDashboard()">
+                            <span class="material-icons">dashboard</span>
+                            <span class="nav-dashboard">Dashboard</span>
+                        </button>
+                        <button class="nav-btn" onclick="showUpload()">
+                            <span class="material-icons">cloud_upload</span>
+                            <span class="nav-upload">Upload</span>
+                        </button>
+                        <button class="nav-btn" onclick="showCategories()">
+                            <span class="material-icons">category</span>
+                            <span class="nav-categories">Kategorien</span>
+                        </button>
+                        <button class="nav-btn" onclick="showUsers()">
+                            <span class="material-icons">people</span>
+                            <span class="nav-users">Benutzer</span>
+                        </button>
+                    </div>
+                    
+                    <div class="user-info">
+                        <span class="badge admin-badge">Admin</span>
+                        <span>admin</span>
+                        <button class="nav-btn" onclick="logout()">
+                            <span class="material-icons">logout</span>
+                            <span class="nav-logout">Abmelden</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="main-content">
+            <div class="container">
+                <div class="page-header">
+                    <h1 class="page-title dashboard-title">Digitale Bibliothek</h1>
+                    <p class="page-subtitle dashboard-subtitle">12 Bücher und Magazine verfügbar</p>
+                </div>
+
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">12</div>
+                        <div class="stat-label books-total">Bücher Gesamt</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">8</div>
+                        <div class="stat-label books-count">Bücher</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">4</div>
+                        <div class="stat-label magazines-count">Magazine</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">4</div>
+                        <div class="stat-label users-count">Benutzer</div>
+                    </div>
+                </div>
+
+                <!-- Search and Filter -->
+                <div class="search-filter">
+                    <input type="text" class="search-input search-placeholder" placeholder="Suche nach Titel oder Autor...">
+                    <select class="filter-select">
+                        <option class="filter-all">Alle Typen</option>
+                        <option class="filter-books">Bücher</option>
+                        <option class="filter-magazines">Magazine</option>
+                    </select>
+                    <select class="filter-select">
+                        <option class="filter-all-cats">Alle Kategorien</option>
+                        <option>Programmierung</option>
+                        <option>Design</option>
+                        <option>Technologie</option>
+                        <option>Business</option>
+                    </select>
+                </div>
+
+                <!-- Books Grid -->
+                <div class="books-grid">
+                    <!-- Book 1 -->
+                    <div class="book-card">
+                        <div class="book-preview">
+                            <div class="book-preview-placeholder">
+                                <span class="material-icons">description</span>
+                                <span class="preview-page">Seite 1</span>
+                            </div>
+                            <div class="book-category">Programmierung</div>
+                        </div>
+                        <div class="book-header">
+                            <div class="book-icon book">
+                                <span class="material-icons">menu_book</span>
+                            </div>
+                            <span class="book-type book book-label">Buch</span>
+                        </div>
+                        <div class="book-content">
+                            <h3 class="book-title">JavaScript: Das umfassende Handbuch</h3>
+                            <p class="book-author">von Philip Ackermann</p>
+                            <p class="book-description">Moderne JavaScript-Entwicklung von den Grundlagen bis zu fortgeschrittenen Techniken...</p>
+                            <div class="book-meta">1.2 MB • PDF • <span class="uploaded-by">Hochgeladen von</span> admin</div>
+                            <div class="book-meta">22. August 2025</div>
+                        </div>
+                        <div class="book-actions">
+                            <button class="btn-outline">
+                                <span class="material-icons">download</span>
+                                <span class="download-btn">Download</span>
+                            </button>
+                            <button class="btn-danger">
+                                <span class="material-icons">delete</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Book 2 -->
+                    <div class="book-card">
+                        <div class="book-preview">
+                            <div class="book-preview-placeholder">
+                                <span class="material-icons">article</span>
+                                <span class="preview-page">Seite 1</span>
+                            </div>
+                            <div class="book-category">Technologie</div>
+                        </div>
+                        <div class="book-header">
+                            <div class="book-icon magazine">
+                                <span class="material-icons">article</span>
+                            </div>
+                            <span class="book-type magazine magazine-label">Magazin</span>
+                        </div>
+                        <div class="book-content">
+                            <h3 class="book-title">c't Magazin 18/2025</h3>
+                            <p class="book-author">von Heise Verlag</p>
+                            <p class="book-description">Aktuelle Trends in der IT-Welt, Hardware-Tests und Software-Reviews...</p>
+                            <div class="book-meta">15.3 MB • PDF • <span class="uploaded-by">Hochgeladen von</span> john_doe</div>
+                            <div class="book-meta">20. August 2025</div>
+                        </div>
+                        <div class="book-actions">
+                            <button class="btn-outline">
+                                <span class="material-icons">download</span>
+                                <span class="download-btn">Download</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Book 3 -->
+                    <div class="book-card">
+                        <div class="book-preview">
+                            <div class="book-preview-placeholder">
+                                <span class="material-icons">menu_book</span>
+                                <span class="preview-page">Seite 1</span>
+                            </div>
+                            <div class="book-category">Programmierung</div>
+                        </div>
+                        <div class="book-header">
+                            <div class="book-icon book">
+                                <span class="material-icons">menu_book</span>
+                            </div>
+                            <span class="book-type book book-label">Buch</span>
+                        </div>
+                        <div class="book-content">
+                            <h3 class="book-title">Clean Code</h3>
+                            <p class="book-author">von Robert C. Martin</p>
+                            <p class="book-description">Ein Handbuch für agile Software-Entwicklung mit praktischen Beispielen...</p>
+                            <div class="book-meta">2.8 MB • EPUB • <span class="uploaded-by">Hochgeladen von</span> admin</div>
+                            <div class="book-meta">18. August 2025</div>
+                        </div>
+                        <div class="book-actions">
+                            <button class="btn-outline">
+                                <span class="material-icons">download</span>
+                                <span class="download-btn">Download</span>
+                            </button>
+                            <button class="btn-danger">
+                                <span class="material-icons">delete</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Book 4 -->
+                    <div class="book-card">
+                        <div class="book-preview">
+                            <div class="book-preview-placeholder">
+                                <span class="material-icons">description</span>
+                                <span class="preview-page">Seite 1</span>
+                            </div>
+                            <div class="book-category">Design</div>
+                        </div>
+                        <div class="book-header">
+                            <div class="book-icon book">
+                                <span class="material-icons">menu_book</span>
+                            </div>
+                            <span class="book-type book book-label">Buch</span>
+                        </div>
+                        <div class="book-content">
+                            <h3 class="book-title">Docker Deep Dive</h3>
+                            <p class="book-author">von Nigel Poulton</p>
+                            <p class="book-description">Alles über Container-Virtualisierung und Docker in der Praxis...</p>
+                            <div class="book-meta">3.1 MB • PDF • <span class="uploaded-by">Hochgeladen von</span> jane_smith</div>
+                            <div class="book-meta">15. August 2025</div>
+                        </div>
+                        <div class="book-actions">
+                            <button class="btn-outline">
+                                <span class="material-icons">download</span>
+                                <span class="download-btn">Download</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Page -->
+        <div id="uploadPage" class="main-content hidden">
+            <div class="container">
+                <div class="page-header">
+                    <h1 class="page-title upload-title">Neues Buch hochladen</h1>
+                    <p class="page-subtitle upload-subtitle">Laden Sie PDF oder EPUB Dateien hoch und verwalten Sie Ihre digitale Bibliothek</p>
+                </div>
+
+                <div class="upload-area">
+                    <div class="drop-zone">
+                        <div class="material-icons upload-icon">cloud_upload</div>
+                        <h3 class="drop-zone-title">Datei auswählen oder hier ablegen</h3>
+                        <p class="drop-zone-subtitle" style="color: #666; margin-top: 0.5rem;">PDF oder EPUB Dateien (max. 50MB)</p>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="title-label">Titel *</label>
+                            <input type="text" class="form-input title-placeholder" placeholder="Buchtitel eingeben...">
+                        </div>
+                        <div class="form-group">
+                            <label class="author-label">Autor</label>
+                            <input type="text" class="form-input author-placeholder" placeholder="Autorname eingeben...">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="type-label">Typ</label>
+                            <select class="form-input">
+                                <option class="book-option">Buch</option>
+                                <option class="magazine-option">Magazin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="category-label">Kategorie</label>
+                            <select class="form-input">
+                                <option class="no-category">Keine Kategorie</option>
+                                <option>Programmierung</option>
+                                <option>Design</option>
+                                <option>Technologie</option>
+                                <option>Business</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row full">
+                        <div class="form-group">
+                            <label class="description-label">Beschreibung</label>
+                            <textarea class="form-input description-placeholder" rows="4" placeholder="Optional: Kurze Beschreibung des Inhalts..."></textarea>
+                        </div>
+                    </div>
+
+                    <button class="btn-primary">
+                        <span class="material-icons" style="margin-right: 8px;">cloud_upload</span>
+                        <span class="upload-button">Hochladen</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories Management -->
+        <div id="categoriesPage" class="main-content hidden">
+            <div class="container">
+                <div class="page-header">
+                    <h1 class="page-title categories-title">Kategorien verwalten</h1>
+                    <p class="page-subtitle categories-subtitle">Erstellen und organisieren Sie Kategorien für Ihre Bücher und Magazine</p>
+                </div>
+
+                <div class="categories-section">
+                    <h3 class="existing-categories">Vorhandene Kategorien</h3>
+                    <div class="category-list">
+                        <div class="category-item">
+                            <span>Programmierung</span>
+                            <button class="category-delete">×</button>
+                        </div>
+                        <div class="category-item">
+                            <span>Design</span>
+                            <button class="category-delete">×</button>
+                        </div>
+                        <div class="category-item">
+                            <span>Technologie</span>
+                            <button class="category-delete">×</button>
+                        </div>
+                        <div class="category-item">
+                            <span>Business</span>
+                            <button class="category-delete">×</button>
+                        </div>
+                        <div class="category-item">
+                            <span>Wissenschaft</span>
+                            <button class="category-delete">×</button>
+                        </div>
+                    </div>
+
+                    <h3 class="add-new-category">Neue Kategorie hinzufügen</h3>
+                    <div class="add-category">
+                        <input type="text" class="form-input category-name-placeholder" placeholder="Kategoriename eingeben...">
+                        <button class="btn-secondary">
+                            <span class="material-icons">add</span>
+                            <span class="add-button">Hinzufügen</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="alert alert-success">
+                    <strong class="note-text">Hinweis:</strong> <span class="categories-note">Kategorien helfen dabei, Ihre Bibliothek besser zu organisieren. Bücher können beim Upload einer Kategorie zugeordnet werden.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management -->
+        <div id="userManagement" class="main-content hidden">
+            <div class="container">
+                <div class="page-header">
+                    <h1 class="page-title users-title">Benutzerverwaltung</h1>
+                    <p class="page-subtitle users-subtitle">Übersicht aller registrierten Benutzer</p>
+                </div>
+
+                <div class="users-table">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th class="user-column">Benutzer</th>
+                                    <th class="email-column">E-Mail</th>
+                                    <th class="role-column">Rolle</th>
+                                    <th class="registered-column">Registriert</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <div class="user-info-cell">
+                                            <div class="user-avatar admin">
+                                                <span class="material-icons">admin_panel_settings</span>
+                                            </div>
+                                            <strong>admin</strong>
+                                        </div>
+                                    </td>
+                                    <td>admin@bookmanager.com</td>
+                                    <td><span class="book-type magazine administrator-label">Administrator</span></td>
+                                    <td style="color: #666;">1. August 2025, 10:30</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="user-info-cell">
+                                            <div class="user-avatar">
+                                                <span class="material-icons">person</span>
+                                            </div>
+                                            <strong>john_doe</strong>
+                                        </div>
+                                    </td>
+                                    <td>john@example.com</td>
+                                    <td><span class="book-type book user-label">Benutzer</span></td>
+                                    <td style="color: #666;">15. August 2025, 14:20</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="user-info-cell">
+                                            <div class="user-avatar">
+                                                <span class="material-icons">person</span>
+                                            </div>
+                                            <strong>jane_smith</strong>
+                                        </div>
+                                    </td>
+                                    <td>jane@example.com</td>
+                                    <td><span class="book-type book user-label">Benutzer</span></td>
+                                    <td style="color: #666;">18. August 2025, 09:15</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="user-info-cell">
+                                            <div class="user-avatar">
+                                                <span class="material-icons">person</span>
+                                            </div>
+                                            <strong>book_lover</strong>
+                                        </div>
+                                    </td>
+                                    <td>reader@books.com</td>
+                                    <td><span class="book-type book user-label">Benutzer</span></td>
+                                    <td style="color: #666;">22. August 2025, 16:45</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="alert alert-success" style="margin-top: 2rem;">
+                    <strong class="note-text">Hinweis:</strong> <span class="user-management-note">Hier werden alle registrierten Benutzer angezeigt. Erweiterte Benutzerverwaltung (Bearbeitung, Löschen, Rollen ändern) kann in zukünftigen Versionen hinzugefügt werden.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Language translations
+        const translations = {
+            de: {
+                // Login
+                'login-title': 'BookManager',
+                'login-subtitle': 'Ihre digitale Bibliothek für Bücher und Magazine',
+                'username-label': 'Benutzername',
+                'password-label': 'Passwort',
+                'login-btn': 'Anmelden',
+                'default-admin-text': 'Standard Admin: admin / admin123',
+                
+                // Navigation
+                'nav-dashboard': 'Dashboard',
+                'nav-upload': 'Upload',
+                'nav-categories': 'Kategorien',
+                'nav-users': 'Benutzer',
+                'nav-logout': 'Abmelden',
+                'admin-badge': 'Admin',
+                
+                // Dashboard
+                'dashboard-title': 'Digitale Bibliothek',
+                'dashboard-subtitle': '12 Bücher und Magazine verfügbar',
+                'books-total': 'Bücher Gesamt',
+                'books-count': 'Bücher',
+                'magazines-count': 'Magazine',
+                'users-count': 'Benutzer',
+                'search-placeholder': 'Suche nach Titel oder Autor...',
+                'filter-all': 'Alle Typen',
+                'filter-books': 'Bücher',
+                'filter-magazines': 'Magazine',
+                'filter-all-cats': 'Alle Kategorien',
+                'book-label': 'Buch',
+                'magazine-label': 'Magazin',
+                'uploaded-by': 'Hochgeladen von',
+                'download-btn': 'Download',
+                'preview-page': 'Seite 1',
+                
+                // Upload
+                'upload-title': 'Neues Buch hochladen',
+                'upload-subtitle': 'Laden Sie PDF oder EPUB Dateien hoch und verwalten Sie Ihre digitale Bibliothek',
+                'drop-zone-title': 'Datei auswählen oder hier ablegen',
+                'drop-zone-subtitle': 'PDF oder EPUB Dateien (max. 50MB)',
+                'title-label': 'Titel *',
+                'title-placeholder': 'Buchtitel eingeben...',
+                'author-label': 'Autor',
+                'author-placeholder': 'Autorname eingeben...',
+                'type-label': 'Typ',
+                'category-label': 'Kategorie',
+                'no-category': 'Keine Kategorie',
+                'book-option': 'Buch',
+                'magazine-option': 'Magazin',
+                'description-label': 'Beschreibung',
+                'description-placeholder': 'Optional: Kurze Beschreibung des Inhalts...',
+                'upload-button': 'Hochladen',
+                
+                // Categories
+                'categories-title': 'Kategorien verwalten',
+                'categories-subtitle': 'Erstellen und organisieren Sie Kategorien für Ihre Bücher und Magazine',
+                'existing-categories': 'Vorhandene Kategorien',
+                'add-new-category': 'Neue Kategorie hinzufügen',
+                'category-name-placeholder': 'Kategoriename eingeben...',
+                'add-button': 'Hinzufügen',
+                'note-text': 'Hinweis:',
+                'categories-note': 'Kategorien helfen dabei, Ihre Bibliothek besser zu organisieren. Bücher können beim Upload einer Kategorie zugeordnet werden.',
+                
+                // Users
+                'users-title': 'Benutzerverwaltung',
+                'users-subtitle': 'Übersicht aller registrierten Benutzer',
+                'user-column': 'Benutzer',
+                'email-column': 'E-Mail',
+                'role-column': 'Rolle',
+                'registered-column': 'Registriert',
+                'administrator-label': 'Administrator',
+                'user-label': 'Benutzer',
+                'user-management-note': 'Hier werden alle registrierten Benutzer angezeigt. Erweiterte Benutzerverwaltung (Bearbeitung, Löschen, Rollen ändern) kann in zukünftigen Versionen hinzugefügt werden.'
+            },
+            en: {
+                // Login
+                'login-title': 'BookManager',
+                'login-subtitle': 'Your digital library for books and magazines',
+                'username-label': 'Username',
+                'password-label': 'Password',
+                'login-btn': 'Sign In',
+                'default-admin-text': 'Default Admin: admin / admin123',
+                
+                // Navigation
+                'nav-dashboard': 'Dashboard',
+                'nav-upload': 'Upload',
+                'nav-categories': 'Categories',
+                'nav-users': 'Users',
+                'nav-logout': 'Logout',
+                'admin-badge': 'Admin',
+                
+                // Dashboard
+                'dashboard-title': 'Digital Library',
+                'dashboard-subtitle': '12 books and magazines available',
+                'books-total': 'Total Books',
+                'books-count': 'Books',
+                'magazines-count': 'Magazines',
+                'users-count': 'Users',
+                'search-placeholder': 'Search by title or author...',
+                'filter-all': 'All Types',
+                'filter-books': 'Books',
+                'filter-magazines': 'Magazines',
+                'filter-all-cats': 'All Categories',
+                'book-label': 'Book',
+                'magazine-label': 'Magazine',
+                'uploaded-by': 'Uploaded by',
+                'download-btn': 'Download',
+                'preview-page': 'Page 1',
+                
+                // Upload
+                'upload-title': 'Upload New Book',
+                'upload-subtitle': 'Upload PDF or EPUB files and manage your digital library',
+                'drop-zone-title': 'Select file or drop here',
+                'drop-zone-subtitle': 'PDF or EPUB files (max. 50MB)',
+                'title-label': 'Title *',
+                'title-placeholder': 'Enter book title...',
+                'author-label': 'Author',
+                'author-placeholder': 'Enter author name...',
+                'type-label': 'Type',
+                'category-label': 'Category',
+                'no-category': 'No Category',
+                'book-option': 'Book',
+                'magazine-option': 'Magazine',
+                'description-label': 'Description',
+                'description-placeholder': 'Optional: Brief description of the content...',
+                'upload-button': 'Upload',
+                
+                // Categories
+                'categories-title': 'Manage Categories',
+                'categories-subtitle': 'Create and organize categories for your books and magazines',
+                'existing-categories': 'Existing Categories',
+                'add-new-category': 'Add New Category',
+                'category-name-placeholder': 'Enter category name...',
+                'add-button': 'Add',
+                'note-text': 'Note:',
+                'categories-note': 'Categories help organize your library better. Books can be assigned to a category during upload.',
+                
+                // Users
+                'users-title': 'User Management',
+                'users-subtitle': 'Overview of all registered users',
+                'user-column': 'User',
+                'email-column': 'Email',
+                'role-column': 'Role',
+                'registered-column': 'Registered',
+                'administrator-label': 'Administrator',
+                'user-label': 'User',
+                'user-management-note': 'All registered users are displayed here. Advanced user management (editing, deleting, changing roles) can be added in future versions.'
+            }
+        };
+
+        let currentLanguage = 'de';
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            
+            // Update language buttons
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update all translatable elements
+            Object.keys(translations[lang]).forEach(key => {
+                const elements = document.querySelectorAll(`.${key}`);
+                elements.forEach(element => {
+                    if (element.tagName === 'INPUT' && element.placeholder !== undefined) {
+                        element.placeholder = translations[lang][key];
+                    } else {
+                        element.textContent = translations[lang][key];
+                    }
+                });
+            });
+        }
+
+        function login() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+        }
+
+        function logout() {
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+        }
+
+        function showDashboard() {
+            hideAllPages();
+            document.getElementById('dashboard').classList.remove('hidden');
+            updateNavigation('dashboard');
+        }
+
+        function showUpload() {
+            hideAllPages();
+            document.getElementById('uploadPage').classList.remove('hidden');
+            updateNavigation('upload');
+        }
+
+        function showCategories() {
+            hideAllPages();
+            document.getElementById('categoriesPage').classList.remove('hidden');
+            updateNavigation('categories');
+        }
+
+        function showUsers() {
+            hideAllPages();
+            document.getElementById('userManagement').classList.remove('hidden');
+            updateNavigation('users');
+        }
+
+        function hideAllPages() {
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('uploadPage').classList.add('hidden');
+            document.getElementById('categoriesPage').classList.add('hidden');
+            document.getElementById('userManagement').classList.add('hidden');
+        }
+
+        function updateNavigation(active) {
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            if (active === 'dashboard') buttons[0].classList.add('active');
+            if (active === 'upload') buttons[1].classList.add('active');
+            if (active === 'categories') buttons[2].classList.add('active');
+            if (active === 'users') buttons[3].classList.add('active');
+        }
+
+        // Add some interactive behaviors
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simulate file drop
+            const dropZone = document.querySelector('.drop-zone');
+            if (dropZone) {
+                dropZone.addEventListener('click', function() {
+                    const isGerman = currentLanguage === 'de';
+                    dropZone.innerHTML = `
+                        <div class="material-icons upload-icon">description</div>
+                        <h3>JavaScript_Handbuch.pdf</h3>
+                        <p style="color: #666; margin-top: 0.5rem;">2.4 MB • PDF • ${isGerman ? 'Bereit zum Upload' : 'Ready for upload'}</p>
+                    `;
+                    dropZone.style.borderColor = '#4caf50';
+                    dropZone.style.backgroundColor = 'rgba(76, 175, 80, 0.05)';
+                });
+            }
+
+            // Search functionality
+            const searchInput = document.querySelector('.search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const bookCards = document.querySelectorAll('.book-card');
+                    
+                    bookCards.forEach(card => {
+                        const title = card.querySelector('.book-title').textContent.toLowerCase();
+                        const author = card.querySelector('.book-author').textContent.toLowerCase();
+                        
+                        if (title.includes(searchTerm) || author.includes(searchTerm)) {
+                            card.style.display = 'block';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
+            // Category management
+            document.querySelectorAll('.category-delete').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.parentElement.remove();
+                });
+            });
+
+            // Add category functionality
+            const addCategoryBtn = document.querySelector('.btn-secondary');
+            if (addCategoryBtn) {
+                addCategoryBtn.addEventListener('click', function() {
+                    const input = document.querySelector('.category-name-placeholder');
+                    const categoryName = input.value.trim();
+                    
+                    if (categoryName) {
+                        const categoryList = document.querySelector('.category-list');
+                        const newCategory = document.createElement('div');
+                        newCategory.className = 'category-item';
+                        newCategory.innerHTML = `
+                            <span>${categoryName}</span>
+                            <button class="category-delete" onclick="this.parentElement.remove()">×</button>
+                        `;
+                        categoryList.appendChild(newCategory);
+                        input.value = '';
+                    }
+                });
+            }
+
+            // Book preview simulation
+            document.querySelectorAll('.book-preview-placeholder').forEach(preview => {
+                preview.addEventListener('click', function() {
+                    const isGerman = currentLanguage === 'de';
+                    this.innerHTML = `
+                        <span class="material-icons" style="font-size: 2rem; margin-bottom: 10px;">visibility</span>
+                        <span style="font-size: 0.9rem;">${isGerman ? 'Vorschau geladen' : 'Preview loaded'}</span>
+                    `;
+                    this.style.background = 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

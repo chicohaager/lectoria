@@ -1,0 +1,85 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=your-secret-key-change-this
+    restart: unless-stopped
+    networks:
+      - bookmanager
+
+networks:
+  bookmanager:
+    driver: bridge
+
+---
+
+# Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Backend Dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Frontend Build
+COPY frontend/package*.json ./frontend/
+COPY logo.png ./frontend/public/logo.png
+WORKDIR /app/frontend
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
+
+# Copy Backend
+WORKDIR /app
+COPY backend_server.js ./server/app.js
+COPY uploads/ ./uploads/
+COPY data/ ./data/
+
+# Create directories
+RUN mkdir -p uploads data
+
+EXPOSE 3000
+
+CMD ["node", "server/app.js"]
+
+---
+
+# package.json (Root)
+{
+  "name": "book-manager",
+  "version": "1.0.0",
+  "description": "Modern Book and Magazine Manager",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "nodemon server/app.js",
+    "dev:client": "cd frontend && npm start",
+    "build": "cd frontend && npm run build"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "sqlite3": "^5.1.6",
+    "uuid": "^9.0.0",
+    "path": "^0.12.7",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.2"
+  }
+}
