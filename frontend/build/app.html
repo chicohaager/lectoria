@@ -648,17 +648,30 @@
             Lectoria
         </div>
         <div class="nav-links">
+            <select id="language-selector" onchange="changeLanguage(this.value)" style="
+                background: transparent;
+                border: 2px solid var(--border);
+                color: var(--text-secondary);
+                padding: 0.5rem;
+                border-radius: 6px;
+                margin-right: 1rem;
+                cursor: pointer;
+                font-size: 0.9rem;
+            ">
+                <option value="en">🇺🇸 English</option>
+                <option value="de">🇩🇪 Deutsch</option>
+            </select>
             <button class="nav-btn" onclick="showSection('dashboard')" id="nav-dashboard">
                 <span class="material-icons">dashboard</span>
-                Dashboard
+                <span data-translate="nav.dashboard">Dashboard</span>
             </button>
             <button class="nav-btn" onclick="showSection('upload')" id="nav-upload">
                 <span class="material-icons">cloud_upload</span>
-                Upload
+                <span data-translate="nav.upload">Upload</span>
             </button>
             <button class="nav-btn" onclick="logout()" id="nav-logout" class="hidden">
                 <span class="material-icons">logout</span>
-                Logout
+                <span data-translate="nav.logout">Logout</span>
             </button>
         </div>
     </div>
@@ -668,8 +681,8 @@
         <div class="login-form">
             <div class="login-header">
                 <div class="login-logo">📚</div>
-                <h2 class="login-title">Willkommen bei Lectoria</h2>
-                <p class="login-subtitle">Melden Sie sich in Ihrer digitalen Bibliothek an</p>
+                <h2 class="login-title" data-translate="login.welcome">Welcome to Lectoria</h2>
+                <p class="login-subtitle" data-translate="login.subtitle">Sign in to your digital library</p>
             </div>
             <div id="login-error" class="alert alert-error hidden">
                 <span class="material-icons">error</span>
@@ -679,20 +692,20 @@
                 <div class="form-group">
                     <label for="username">
                         <span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">person</span>
-                        Benutzername
+                        <span data-translate="login.username">Username</span>
                     </label>
                     <input type="text" id="username" name="username" value="admin" required>
                 </div>
                 <div class="form-group">
                     <label for="password">
                         <span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">lock</span>
-                        Passwort
+                        <span data-translate="login.password">Password</span>
                     </label>
                     <input type="password" id="password" name="password" value="admin123" required>
                 </div>
                 <button type="submit" class="btn" style="width: 100%;">
                     <span class="material-icons">login</span>
-                    Anmelden
+                    <span data-translate="login.signin">Sign In</span>
                 </button>
             </form>
         </div>
@@ -701,8 +714,8 @@
     <!-- Dashboard Section -->
     <div id="dashboard-section" class="container hidden">
         <div class="welcome-card">
-            <h1>Willkommen in Ihrer digitalen Bibliothek!</h1>
-            <p>Verwalten Sie Ihre PDF und EPUB Dateien mit erweiterten Sharing-Funktionen</p>
+            <h1 data-translate="dashboard.welcome">Welcome to your digital library!</h1>
+            <p data-translate="dashboard.subtitle">Manage your PDF and EPUB files with advanced sharing features</p>
         </div>
         
         <div class="feature-grid">
@@ -710,33 +723,33 @@
                 <div class="feature-icon">
                     <span class="material-icons">library_books</span>
                 </div>
-                <h3>Meine Bücher</h3>
-                <p>Durchsuchen und verwalten Sie Ihre digitale Sammlung</p>
+                <h3 data-translate="dashboard.mybooks">My Books</h3>
+                <p data-translate="dashboard.mybooks.desc">Browse and manage your digital collection</p>
                 <button class="btn" onclick="loadBooks()">
                     <span class="material-icons">visibility</span>
-                    Bücher anzeigen
+                    <span data-translate="dashboard.mybooks.btn">View Books</span>
                 </button>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
                     <span class="material-icons">cloud_upload</span>
                 </div>
-                <h3>Neues Buch</h3>
-                <p>PDF oder EPUB Dateien mit Cover-Bildern hochladen</p>
+                <h3 data-translate="dashboard.newbook">New Book</h3>
+                <p data-translate="dashboard.newbook.desc">Upload PDF or EPUB files with cover images</p>
                 <button class="btn" onclick="showSection('upload')">
                     <span class="material-icons">add</span>
-                    Upload starten
+                    <span data-translate="dashboard.newbook.btn">Start Upload</span>
                 </button>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
                     <span class="material-icons">share</span>
                 </div>
-                <h3>Geteilte Links</h3>
-                <p>Verwalten Sie Ihre öffentlichen Freigaben</p>
-                <button class="btn-secondary" onclick="alert('Feature verfügbar über Buch-Details')">
+                <h3 data-translate="dashboard.sharedlinks">Shared Links</h3>
+                <p data-translate="dashboard.sharedlinks.desc">Manage your public shares</p>
+                <button class="btn-secondary" onclick="alert('Feature available via book details')">
                     <span class="material-icons">link</span>
-                    Links verwalten
+                    <span data-translate="dashboard.sharedlinks.btn">Manage Links</span>
                 </button>
             </div>
         </div>
@@ -750,8 +763,8 @@
     <!-- Upload Section -->
     <div id="upload-section" class="container hidden">
         <div class="welcome-card">
-            <h2>Neues Buch hochladen</h2>
-            <p>Laden Sie PDF oder EPUB Dateien hoch und fügen Sie optional ein Cover-Bild hinzu</p>
+            <h2 data-translate="upload.title">Upload New Book</h2>
+            <p data-translate="upload.subtitle">Upload PDF or EPUB files and optionally add a cover image</p>
         </div>
         
         <div class="feature-card">
@@ -769,8 +782,8 @@
                     <div class="upload-icon">
                         <span class="material-icons">description</span>
                     </div>
-                    <div class="upload-text">Buch-Datei auswählen</div>
-                    <div class="upload-subtext">PDF oder EPUB (max. 50MB)</div>
+                    <div class="upload-text" data-translate="upload.bookfile">Select Book File</div>
+                    <div class="upload-subtext" data-translate="upload.bookfile.desc">PDF or EPUB (max. 50MB)</div>
                     <input type="file" id="book-file" accept=".pdf,.epub" style="display: none;" onchange="updateFileName()">
                     <div id="selected-file" class="file-preview hidden"></div>
                 </div>
@@ -779,8 +792,8 @@
                     <div class="upload-icon">
                         <span class="material-icons">image</span>
                     </div>
-                    <div class="upload-text">Cover-Bild (optional)</div>
-                    <div class="upload-subtext">JPG, PNG oder WEBP (max. 5MB)</div>
+                    <div class="upload-text" data-translate="upload.coverfile">Cover Image (optional)</div>
+                    <div class="upload-subtext" data-translate="upload.coverfile.desc">JPG, PNG or WEBP (max. 5MB)</div>
                     <input type="file" id="cover-file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" onchange="updateCoverPreview()">
                     <div id="cover-preview-container" class="hidden" style="margin-top: 1rem;">
                         <img id="cover-preview" style="max-width: 150px; max-height: 200px; border-radius: 8px; box-shadow: var(--shadow);">
@@ -788,29 +801,39 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="book-title">Titel:</label>
+                    <label for="book-title" data-translate="upload.title.label">Title:</label>
                     <input type="text" id="book-title" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="book-author">Autor:</label>
+                    <label for="book-author" data-translate="upload.author.label">Author:</label>
                     <input type="text" id="book-author">
                 </div>
                 
                 <div class="form-group">
-                    <label for="book-type">Typ:</label>
-                    <select id="book-type" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px;">
-                        <option value="book">Buch</option>
-                        <option value="magazine">Magazin</option>
+                    <label for="book-type" data-translate="upload.type.label">Type:</label>
+                    <select id="book-type">
+                        <option value="book" data-translate="upload.type.book">Book</option>
+                        <option value="magazine" data-translate="upload.type.magazine">Magazine</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label for="book-description">Beschreibung:</label>
-                    <textarea id="book-description" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; height: 100px;"></textarea>
+                    <label for="book-description" data-translate="upload.description.label">Description:</label>
+                    <textarea id="book-description"></textarea>
                 </div>
                 
-                <button type="submit" class="btn" id="upload-btn">Buch hochladen</button>
+                <!-- Share Link Options -->
+                <div class="form-group">
+                    <label data-translate="share.custom">Custom expiration:</label>
+                    <input type="number" id="share-hours" placeholder="0" min="0" max="8760" style="margin-bottom: 0.5rem;">
+                    <small style="color: var(--text-secondary);" data-translate="share.custom.placeholder">Hours (or 0 for never)</small>
+                </div>
+                
+                <button type="submit" class="btn" id="upload-btn">
+                    <span class="material-icons">cloud_upload</span>
+                    <span data-translate="upload.submit">Upload Book</span>
+                </button>
             </form>
         </div>
     </div>
@@ -818,9 +841,198 @@
     <script>
         let currentUser = null;
         let authToken = null;
+        let currentLanguage = localStorage.getItem('language') || 'en';
+
+        // Language translations
+        const translations = {
+            en: {
+                // Navigation
+                'nav.dashboard': 'Dashboard',
+                'nav.upload': 'Upload',
+                'nav.logout': 'Logout',
+                
+                // Login
+                'login.welcome': 'Welcome to Lectoria',
+                'login.subtitle': 'Sign in to your digital library',
+                'login.username': 'Username',
+                'login.password': 'Password',
+                'login.signin': 'Sign In',
+                'login.error': 'Login failed',
+                
+                // Dashboard
+                'dashboard.welcome': 'Welcome to your digital library!',
+                'dashboard.subtitle': 'Manage your PDF and EPUB files with advanced sharing features',
+                'dashboard.mybooks': 'My Books',
+                'dashboard.mybooks.desc': 'Browse and manage your digital collection',
+                'dashboard.mybooks.btn': 'View Books',
+                'dashboard.newbook': 'New Book',
+                'dashboard.newbook.desc': 'Upload PDF or EPUB files with cover images',
+                'dashboard.newbook.btn': 'Start Upload',
+                'dashboard.sharedlinks': 'Shared Links',
+                'dashboard.sharedlinks.desc': 'Manage your public shares',
+                'dashboard.sharedlinks.btn': 'Manage Links',
+                'dashboard.nobooks': 'No books available yet',
+                'dashboard.nobooks.desc': 'Start by uploading your first book!',
+                'dashboard.nobooks.btn': 'Upload First Book',
+                
+                // Upload
+                'upload.title': 'Upload New Book',
+                'upload.subtitle': 'Upload PDF or EPUB files and optionally add a cover image',
+                'upload.bookfile': 'Select Book File',
+                'upload.bookfile.desc': 'PDF or EPUB (max. 50MB)',
+                'upload.coverfile': 'Cover Image (optional)',
+                'upload.coverfile.desc': 'JPG, PNG or WEBP (max. 5MB)',
+                'upload.title.label': 'Title',
+                'upload.author.label': 'Author',
+                'upload.type.label': 'Type',
+                'upload.type.book': 'Book',
+                'upload.type.magazine': 'Magazine',
+                'upload.description.label': 'Description',
+                'upload.submit': 'Upload Book',
+                'upload.uploading': 'Uploading...',
+                'upload.success': 'Book uploaded successfully!',
+                'upload.error': 'Upload failed',
+                
+                // Books
+                'book.author': 'by',
+                'book.downloads': 'downloads',
+                'book.download': 'Download',
+                'book.share': 'Share',
+                'book.type.book': '📚 Book',
+                'book.type.magazine': '📰 Magazine',
+                
+                // Sharing
+                'share.create': 'Create Share Link',
+                'share.never': 'Never expires',
+                'share.hours': 'Valid for {hours} hours',
+                'share.custom': 'Custom expiration',
+                'share.custom.placeholder': 'Hours (or 0 for never)',
+                'share.success': '✅ Share link copied to clipboard!',
+                'share.error': 'Error creating share link',
+                
+                // Common
+                'common.close': 'Close',
+                'common.cancel': 'Cancel',
+                'common.save': 'Save',
+                'common.delete': 'Delete',
+                'common.edit': 'Edit',
+                'common.loading': 'Loading...',
+                'common.error': 'Error',
+                'common.success': 'Success',
+                'common.language': 'Language'
+            },
+            de: {
+                // Navigation
+                'nav.dashboard': 'Dashboard',
+                'nav.upload': 'Upload',
+                'nav.logout': 'Abmelden',
+                
+                // Login
+                'login.welcome': 'Willkommen bei Lectoria',
+                'login.subtitle': 'Melden Sie sich in Ihrer digitalen Bibliothek an',
+                'login.username': 'Benutzername',
+                'login.password': 'Passwort',
+                'login.signin': 'Anmelden',
+                'login.error': 'Anmeldung fehlgeschlagen',
+                
+                // Dashboard
+                'dashboard.welcome': 'Willkommen in Ihrer digitalen Bibliothek!',
+                'dashboard.subtitle': 'Verwalten Sie Ihre PDF und EPUB Dateien mit erweiterten Sharing-Funktionen',
+                'dashboard.mybooks': 'Meine Bücher',
+                'dashboard.mybooks.desc': 'Durchsuchen und verwalten Sie Ihre digitale Sammlung',
+                'dashboard.mybooks.btn': 'Bücher anzeigen',
+                'dashboard.newbook': 'Neues Buch',
+                'dashboard.newbook.desc': 'PDF oder EPUB Dateien mit Cover-Bildern hochladen',
+                'dashboard.newbook.btn': 'Upload starten',
+                'dashboard.sharedlinks': 'Geteilte Links',
+                'dashboard.sharedlinks.desc': 'Verwalten Sie Ihre öffentlichen Freigaben',
+                'dashboard.sharedlinks.btn': 'Links verwalten',
+                'dashboard.nobooks': 'Noch keine Bücher vorhanden',
+                'dashboard.nobooks.desc': 'Beginnen Sie mit dem Upload Ihres ersten Buchs!',
+                'dashboard.nobooks.btn': 'Erstes Buch hochladen',
+                
+                // Upload
+                'upload.title': 'Neues Buch hochladen',
+                'upload.subtitle': 'Laden Sie PDF oder EPUB Dateien hoch und fügen Sie optional ein Cover-Bild hinzu',
+                'upload.bookfile': 'Buch-Datei auswählen',
+                'upload.bookfile.desc': 'PDF oder EPUB (max. 50MB)',
+                'upload.coverfile': 'Cover-Bild (optional)',
+                'upload.coverfile.desc': 'JPG, PNG oder WEBP (max. 5MB)',
+                'upload.title.label': 'Titel',
+                'upload.author.label': 'Autor',
+                'upload.type.label': 'Typ',
+                'upload.type.book': 'Buch',
+                'upload.type.magazine': 'Magazin',
+                'upload.description.label': 'Beschreibung',
+                'upload.submit': 'Buch hochladen',
+                'upload.uploading': 'Hochladen...',
+                'upload.success': 'Buch erfolgreich hochgeladen!',
+                'upload.error': 'Upload fehlgeschlagen',
+                
+                // Books
+                'book.author': 'von',
+                'book.downloads': 'Downloads',
+                'book.download': 'Download',
+                'book.share': 'Teilen',
+                'book.type.book': '📚 Buch',
+                'book.type.magazine': '📰 Magazin',
+                
+                // Sharing
+                'share.create': 'Share-Link erstellen',
+                'share.never': 'Läuft nie ab',
+                'share.hours': 'Gültig für {hours} Stunden',
+                'share.custom': 'Benutzerdefinierte Gültigkeit',
+                'share.custom.placeholder': 'Stunden (oder 0 für unbegrenzt)',
+                'share.success': '✅ Share-Link in Zwischenablage kopiert!',
+                'share.error': 'Fehler beim Erstellen des Share-Links',
+                
+                // Common
+                'common.close': 'Schließen',
+                'common.cancel': 'Abbrechen',
+                'common.save': 'Speichern',
+                'common.delete': 'Löschen',
+                'common.edit': 'Bearbeiten',
+                'common.loading': 'Laden...',
+                'common.error': 'Fehler',
+                'common.success': 'Erfolg',
+                'common.language': 'Sprache'
+            }
+        };
+
+        // Translation function
+        function t(key, params = {}) {
+            let text = translations[currentLanguage][key] || translations['en'][key] || key;
+            
+            // Replace parameters
+            Object.keys(params).forEach(param => {
+                text = text.replace(`{${param}}`, params[param]);
+            });
+            
+            return text;
+        }
+
+        // Language functions
+        function initializeLanguage() {
+            document.getElementById('language-selector').value = currentLanguage;
+            updatePageTranslations();
+        }
+
+        function changeLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            updatePageTranslations();
+        }
+
+        function updatePageTranslations() {
+            document.querySelectorAll('[data-translate]').forEach(element => {
+                const key = element.getAttribute('data-translate');
+                element.textContent = t(key);
+            });
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            initializeLanguage();
             checkAuthStatus();
         });
 
@@ -928,11 +1140,11 @@
                 grid.innerHTML = `
                     <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 2rem;">
                         <div style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.3;">📚</div>
-                        <h3 style="margin-bottom: 1rem; color: var(--text-secondary);">Noch keine Bücher vorhanden</h3>
-                        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Beginnen Sie mit dem Upload Ihres ersten Buchs!</p>
+                        <h3 style="margin-bottom: 1rem; color: var(--text-secondary);">${t('dashboard.nobooks')}</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 2rem;">${t('dashboard.nobooks.desc')}</p>
                         <button class="btn" onclick="showSection('upload')">
                             <span class="material-icons">add</span>
-                            Erstes Buch hochladen
+                            ${t('dashboard.nobooks.btn')}
                         </button>
                     </div>
                 `;
@@ -949,12 +1161,12 @@
                     }
                     <div class="book-content">
                         <h3 class="book-title">${book.title}</h3>
-                        <p class="book-author">von ${book.author || 'Unbekannt'}</p>
+                        <p class="book-author">${t('book.author')} ${book.author || 'Unknown'}</p>
                         <div class="book-meta">
-                            <span class="book-type-badge">${book.type === 'magazine' ? '📰 Magazin' : '📚 Buch'}</span>
+                            <span class="book-type-badge">${t('book.type.' + book.type)}</span>
                             <span class="download-count">
                                 <span class="material-icons" style="font-size: 1rem;">download</span>
-                                ${book.download_count || 0}
+                                ${book.download_count || 0} ${t('book.downloads')}
                             </span>
                         </div>
                         ${book.description ? `<p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.4;">${book.description.length > 100 ? book.description.substring(0, 100) + '...' : book.description}</p>` : ''}
@@ -962,11 +1174,11 @@
                     <div class="book-actions">
                         <button class="btn btn-small" onclick="downloadBook('${book.id}', '${book.filename}')">
                             <span class="material-icons">download</span>
-                            Download
+                            ${t('book.download')}
                         </button>
-                        <button class="btn-secondary btn-small" onclick="shareBook('${book.id}')">
+                        <button class="btn-secondary btn-small" onclick="showShareDialog('${book.id}')">
                             <span class="material-icons">share</span>
-                            Teilen
+                            ${t('book.share')}
                         </button>
                     </div>
                 </div>
@@ -999,28 +1211,119 @@
             }
         }
 
-        async function shareBook(id) {
+        function showShareDialog(bookId) {
+            const dialog = document.createElement('div');
+            dialog.className = 'modal-overlay';
+            dialog.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                backdrop-filter: blur(4px);
+            `;
+            
+            dialog.innerHTML = `
+                <div class="modal-content" style="
+                    background: var(--surface);
+                    border-radius: var(--border-radius);
+                    padding: 2rem;
+                    max-width: 500px;
+                    width: 90%;
+                    box-shadow: var(--shadow-lg);
+                    border: 1px solid var(--border);
+                ">
+                    <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="material-icons">share</span>
+                        ${t('share.create')}
+                    </h3>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 1rem; font-weight: 500;">
+                            ${t('share.custom')}:
+                        </label>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <button class="btn-secondary" onclick="createShareLink('${bookId}', 0)" style="flex: 1;">
+                                ${t('share.never')}
+                            </button>
+                            <button class="btn-secondary" onclick="createShareLink('${bookId}', 24)" style="flex: 1;">
+                                24h
+                            </button>
+                            <button class="btn-secondary" onclick="createShareLink('${bookId}', 168)" style="flex: 1;">
+                                7d
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="number" id="custom-hours" placeholder="0" min="0" max="8760" 
+                                style="flex: 1; padding: 0.75rem; border: 2px solid var(--border); border-radius: 6px;">
+                            <button class="btn" onclick="createShareLink('${bookId}', document.getElementById('custom-hours').value || 0)">
+                                ${t('common.create', {default: 'Create'})}
+                            </button>
+                        </div>
+                        <small style="color: var(--text-secondary); margin-top: 0.5rem; display: block;">
+                            ${t('share.custom.placeholder')}
+                        </small>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button class="btn-secondary" onclick="closeShareDialog()">
+                            ${t('common.close')}
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            dialog.onclick = (e) => {
+                if (e.target === dialog) closeShareDialog();
+            };
+            
+            document.body.appendChild(dialog);
+            window.currentShareDialog = dialog;
+        }
+        
+        function closeShareDialog() {
+            if (window.currentShareDialog) {
+                document.body.removeChild(window.currentShareDialog);
+                window.currentShareDialog = null;
+            }
+        }
+
+        async function createShareLink(bookId, hours) {
             try {
-                const response = await fetch(`/api/books/${id}/share`, {
+                const expiresIn = hours && hours > 0 ? parseInt(hours) : null;
+                
+                const response = await fetch(`/api/books/${bookId}/share`, {
                     method: 'POST',
                     headers: {
                         'Authorization': 'Bearer ' + authToken,
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({ expiresIn })
                 });
                 
                 const data = await response.json();
                 
                 if (response.ok) {
                     navigator.clipboard.writeText(data.shareUrl).then(() => {
-                        alert('✅ Share-Link in Zwischenablage kopiert!\\n\\nLink: ' + data.shareUrl);
+                        alert(t('share.success') + '\\n\\nLink: ' + data.shareUrl);
+                        closeShareDialog();
                     });
                 } else {
-                    alert('Fehler beim Erstellen des Share-Links: ' + data.error);
+                    alert(t('share.error') + ': ' + data.error);
                 }
             } catch (error) {
-                alert('Fehler: ' + error.message);
+                alert(t('share.error') + ': ' + error.message);
             }
+        }
+
+        // Legacy function for backward compatibility
+        async function shareBook(id) {
+            showShareDialog(id);
         }
 
         async function uploadBook(event) {
@@ -1044,8 +1347,12 @@
             formData.append('type', document.getElementById('book-type').value);
             formData.append('description', document.getElementById('book-description').value);
             
-            document.getElementById('upload-btn').disabled = true;
-            document.getElementById('upload-btn').textContent = 'Uploading...';
+            const uploadBtn = document.getElementById('upload-btn');
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = `
+                <div class="spinner"></div>
+                ${t('upload.uploading')}
+            `;
             
             try {
                 const response = await fetch('/api/books/upload', {
@@ -1059,18 +1366,22 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showMessage('upload-success', 'Buch erfolgreich hochgeladen!');
+                    showMessage('upload-success', t('upload.success'));
                     document.querySelector('#upload-section form').reset();
                     document.getElementById('selected-file').textContent = '';
-                    document.getElementById('cover-preview').style.display = 'none';
+                    document.getElementById('selected-file').classList.add('hidden');
+                    document.getElementById('cover-preview-container').classList.add('hidden');
                 } else {
-                    showError('upload-error', data.error || 'Upload fehlgeschlagen');
+                    showError('upload-error', data.error || t('upload.error'));
                 }
             } catch (error) {
-                showError('upload-error', 'Upload-Fehler: ' + error.message);
+                showError('upload-error', t('upload.error') + ': ' + error.message);
             } finally {
-                document.getElementById('upload-btn').disabled = false;
-                document.getElementById('upload-btn').textContent = 'Buch hochladen';
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = `
+                    <span class="material-icons">cloud_upload</span>
+                    <span data-translate="upload.submit">${t('upload.submit')}</span>
+                `;
             }
         }
 
