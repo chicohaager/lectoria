@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lectoria - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .nav-links button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .nav-links button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .welcome-card {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 1rem;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0.5rem;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .login-form {
+            max-width: 400px;
+            margin: 2rem auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+        
+        .success {
+            background: #efe;
+            color: #363;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .book-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .book-cover {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 3rem;
+            text-align: center;
+            margin: 2rem 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">📚 Lectoria</div>
+        <div class="nav-links">
+            <button onclick="showSection('dashboard')" id="nav-dashboard">Dashboard</button>
+            <button onclick="showSection('upload')" id="nav-upload">Upload</button>
+            <button onclick="logout()" id="nav-logout" class="hidden">Logout</button>
+        </div>
+    </div>
+
+    <!-- Login Section -->
+    <div id="login-section" class="container">
+        <div class="login-form">
+            <h2 style="text-align: center; margin-bottom: 2rem;">Lectoria Login</h2>
+            <div id="login-error" class="error hidden"></div>
+            <form onsubmit="login(event)">
+                <div class="form-group">
+                    <label for="username">Benutzername:</label>
+                    <input type="text" id="username" name="username" value="admin" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Passwort:</label>
+                    <input type="password" id="password" name="password" value="admin123" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Anmelden</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" class="container hidden">
+        <div class="welcome-card">
+            <h1>Willkommen in Ihrer digitalen Bibliothek!</h1>
+            <p>Verwalten Sie Ihre PDF und EPUB Dateien mit erweiterten Sharing-Funktionen</p>
+        </div>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📚</div>
+                <h3>Meine Bücher</h3>
+                <p>Durchsuchen und verwalten Sie Ihre Sammlung</p>
+                <button class="btn" onclick="loadBooks()">Bücher anzeigen</button>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⬆️</div>
+                <h3>Neues Buch</h3>
+                <p>PDF oder EPUB Dateien hochladen</p>
+                <button class="btn" onclick="showSection('upload')">Upload</button>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔗</div>
+                <h3>Geteilte Links</h3>
+                <p>Verwalten Sie Ihre öffentlichen Freigaben</p>
+                <button class="btn" onclick="alert('Feature in Entwicklung')">Links verwalten</button>
+            </div>
+        </div>
+        
+        <div id="books-container" class="hidden">
+            <h2>Meine Bücher</h2>
+            <div id="books-grid" class="book-grid"></div>
+        </div>
+    </div>
+
+    <!-- Upload Section -->
+    <div id="upload-section" class="container hidden">
+        <div class="welcome-card">
+            <h2>Neues Buch hochladen</h2>
+            <p>Laden Sie PDF oder EPUB Dateien hoch und fügen Sie optional ein Cover-Bild hinzu</p>
+        </div>
+        
+        <div class="feature-card">
+            <div id="upload-error" class="error hidden"></div>
+            <div id="upload-success" class="success hidden"></div>
+            
+            <form onsubmit="uploadBook(event)" enctype="multipart/form-data">
+                <div class="upload-area" onclick="document.getElementById('book-file').click()">
+                    <div class="feature-icon">📁</div>
+                    <p><strong>Buch-Datei auswählen</strong></p>
+                    <p>PDF oder EPUB (max. 50MB)</p>
+                    <input type="file" id="book-file" accept=".pdf,.epub" style="display: none;" onchange="updateFileName()">
+                    <p id="selected-file"></p>
+                </div>
+                
+                <div class="upload-area" onclick="document.getElementById('cover-file').click()">
+                    <div class="feature-icon">🖼️</div>
+                    <p><strong>Cover-Bild (optional)</strong></p>
+                    <p>JPG, PNG oder WEBP (max. 5MB)</p>
+                    <input type="file" id="cover-file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" onchange="updateCoverPreview()">
+                    <img id="cover-preview" style="max-width: 150px; max-height: 200px; display: none; margin-top: 1rem;">
+                </div>
+                
+                <div class="form-group">
+                    <label for="book-title">Titel:</label>
+                    <input type="text" id="book-title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="book-author">Autor:</label>
+                    <input type="text" id="book-author">
+                </div>
+                
+                <div class="form-group">
+                    <label for="book-type">Typ:</label>
+                    <select id="book-type" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="book">Buch</option>
+                        <option value="magazine">Magazin</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="book-description">Beschreibung:</label>
+                    <textarea id="book-description" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; height: 100px;"></textarea>
+                </div>
+                
+                <button type="submit" class="btn" id="upload-btn">Buch hochladen</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let authToken = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
+        });
+
+        function checkAuthStatus() {
+            authToken = localStorage.getItem('authToken');
+            if (authToken) {
+                currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                showDashboard();
+            }
+        }
+
+        async function login(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+                    showDashboard();
+                } else {
+                    showError('login-error', data.error || 'Login fehlgeschlagen');
+                }
+            } catch (error) {
+                showError('login-error', 'Verbindungsfehler: ' + error.message);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            authToken = null;
+            currentUser = null;
+            showLogin();
+        }
+
+        function showLogin() {
+            hideAllSections();
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('nav-logout').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            hideAllSections();
+            document.getElementById('dashboard-section').classList.remove('hidden');
+            document.getElementById('nav-logout').classList.remove('hidden');
+        }
+
+        function showSection(section) {
+            hideAllSections();
+            document.getElementById(section + '-section').classList.remove('hidden');
+        }
+
+        function hideAllSections() {
+            const sections = ['login-section', 'dashboard-section', 'upload-section'];
+            sections.forEach(section => {
+                document.getElementById(section).classList.add('hidden');
+            });
+            hideError('login-error');
+            hideError('upload-error');
+            hideMessage('upload-success');
+        }
+
+        async function loadBooks() {
+            try {
+                const response = await fetch('/api/books', {
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayBooks(data.books || data);
+                    document.getElementById('books-container').classList.remove('hidden');
+                } else {
+                    alert('Fehler beim Laden der Bücher: ' + data.error);
+                }
+            } catch (error) {
+                alert('Verbindungsfehler: ' + error.message);
+            }
+        }
+
+        function displayBooks(books) {
+            const grid = document.getElementById('books-grid');
+            
+            if (!books || books.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #666;">Noch keine Bücher vorhanden</p>';
+                return;
+            }
+            
+            grid.innerHTML = books.map(book => `
+                <div class="book-card">
+                    ${book.cover_image ? `<img src="${book.cover_image}" alt="${book.title}" class="book-cover">` : ''}
+                    <h3>${book.title}</h3>
+                    <p><strong>Autor:</strong> ${book.author || 'Unbekannt'}</p>
+                    <p><strong>Typ:</strong> ${book.type === 'magazine' ? 'Magazin' : 'Buch'}</p>
+                    <p><strong>Downloads:</strong> ${book.download_count || 0}</p>
+                    ${book.description ? `<p>${book.description}</p>` : ''}
+                    <div style="margin-top: 1rem;">
+                        <button class="btn" onclick="downloadBook('${book.id}', '${book.filename}')">Download</button>
+                        <button class="btn" onclick="shareBook('${book.id}')">Teilen</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function downloadBook(id, filename) {
+            try {
+                const response = await fetch(`/api/books/${id}/download`, {
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken
+                    }
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    alert('Fehler beim Download');
+                }
+            } catch (error) {
+                alert('Download-Fehler: ' + error.message);
+            }
+        }
+
+        async function shareBook(id) {
+            try {
+                const response = await fetch(`/api/books/${id}/share`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    navigator.clipboard.writeText(data.shareUrl).then(() => {
+                        alert('✅ Share-Link in Zwischenablage kopiert!\\n\\nLink: ' + data.shareUrl);
+                    });
+                } else {
+                    alert('Fehler beim Erstellen des Share-Links: ' + data.error);
+                }
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+            }
+        }
+
+        async function uploadBook(event) {
+            event.preventDefault();
+            
+            const bookFile = document.getElementById('book-file').files[0];
+            const coverFile = document.getElementById('cover-file').files[0];
+            
+            if (!bookFile) {
+                showError('upload-error', 'Bitte wählen Sie eine Buch-Datei aus');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', bookFile);
+            if (coverFile) {
+                formData.append('cover', coverFile);
+            }
+            formData.append('title', document.getElementById('book-title').value);
+            formData.append('author', document.getElementById('book-author').value);
+            formData.append('type', document.getElementById('book-type').value);
+            formData.append('description', document.getElementById('book-description').value);
+            
+            document.getElementById('upload-btn').disabled = true;
+            document.getElementById('upload-btn').textContent = 'Uploading...';
+            
+            try {
+                const response = await fetch('/api/books/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('upload-success', 'Buch erfolgreich hochgeladen!');
+                    document.querySelector('#upload-section form').reset();
+                    document.getElementById('selected-file').textContent = '';
+                    document.getElementById('cover-preview').style.display = 'none';
+                } else {
+                    showError('upload-error', data.error || 'Upload fehlgeschlagen');
+                }
+            } catch (error) {
+                showError('upload-error', 'Upload-Fehler: ' + error.message);
+            } finally {
+                document.getElementById('upload-btn').disabled = false;
+                document.getElementById('upload-btn').textContent = 'Buch hochladen';
+            }
+        }
+
+        function updateFileName() {
+            const file = document.getElementById('book-file').files[0];
+            if (file) {
+                document.getElementById('selected-file').textContent = `Ausgewählt: ${file.name}`;
+                if (!document.getElementById('book-title').value) {
+                    document.getElementById('book-title').value = file.name.replace(/\.[^/.]+$/, "");
+                }
+            }
+        }
+
+        function updateCoverPreview() {
+            const file = document.getElementById('cover-file').files[0];
+            if (file) {
+                const preview = document.getElementById('cover-preview');
+                preview.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
+            }
+        }
+
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.remove('hidden');
+        }
+
+        function hideError(elementId) {
+            document.getElementById(elementId).classList.add('hidden');
+        }
+
+        function showMessage(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.remove('hidden');
+        }
+
+        function hideMessage(elementId) {
+            document.getElementById(elementId).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

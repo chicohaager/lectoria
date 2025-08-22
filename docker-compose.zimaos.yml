@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  lectoria:
+    build: .
+    container_name: lectoria-zimaos
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-me}
+      - PORT=3000
+    volumes:
+      # ZimaOS persistent storage paths
+      - /DATA/AppData/lectoria/data:/app/data
+      - /DATA/AppData/lectoria/uploads:/app/uploads
+      - /DATA/AppData/lectoria/logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - lectoria-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Nginx für SSL/Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: lectoria-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /DATA/AppData/lectoria/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /DATA/AppData/lectoria/ssl:/etc/nginx/ssl:ro
+      - /DATA/AppData/lectoria/www:/var/www/html:ro
+    depends_on:
+      - lectoria
+    networks:
+      - lectoria-network
+    restart: unless-stopped
+
+volumes:
+  # Explizite Volumes für ZimaOS
+  lectoria-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /DATA/AppData/lectoria/data
+      
+  lectoria-uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /DATA/AppData/lectoria/uploads
+
+networks:
+  lectoria-network:
+    driver: bridge

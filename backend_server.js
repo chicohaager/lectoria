@@ -814,8 +814,23 @@ app.get('/share/:token', (req, res) => {
   res.sendFile(path.join(__dirname, './frontend/build/share.html'));
 });
 
-app.get('*', (req, res) => {
+// Serve main application
+app.get('/app', (req, res) => {
+  res.sendFile(path.join(__dirname, './frontend/build/app.html'));
+});
+
+// Redirect root to app
+app.get('/', (req, res) => {
+  res.redirect('/app');
+});
+
+// Status page for API info
+app.get('/status', (req, res) => {
   res.sendFile(path.join(__dirname, './frontend/build/index.html'));
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, './frontend/build/app.html'));
 });
 
 // Error handling middleware
