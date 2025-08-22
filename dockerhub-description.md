@@ -28,6 +28,12 @@
 - One-click copy to clipboard functionality
 - Access tracking and download statistics
 
+### 🎨 **Modern UI/UX**
+- Beautiful dark mode with smooth transitions
+- Multilingual support (English/German)
+- Material Design components and icons
+- Responsive design for all devices
+
 ### 🏠 **NAS & Home Server Ready**
 - Optimized for ZimaOS, Synology, QNAP
 - Persistent storage with Docker volumes
@@ -146,6 +152,7 @@ volumes:
 | Tag | Description | Size |
 |-----|-------------|------|
 | `latest` | Latest stable release | ~200MB |
+| `v2.1` | Version 2.1 with dark mode & multilingual support | ~200MB |
 | `v2.0` | Version 2.0 with cover images | ~200MB |
 | `v1.0` | Initial release | ~180MB |
 
