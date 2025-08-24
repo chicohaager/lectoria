@@ -69,10 +69,43 @@ root.render(
 
 ---
 
-// frontend/src/App.js
+// frontend/src/App.js - Updated with new features
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Box } from '@mui/material';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { 
+  Box, 
+  AppBar, 
+  Toolbar, 
+  Typography, 
+  Button, 
+  IconButton, 
+  Menu, 
+  MenuItem,
+  Avatar,
+  Divider,
+  ListItemIcon,
+  ListItemText,
+  Container,
+  Paper,
+  Grid,
+  Card,
+  CardContent,
+  Alert,
+  Snackbar,
+} from '@mui/material';
+import {
+  Home,
+  CloudUpload,
+  People,
+  Logout,
+  Book,
+  AdminPanelSettings,
+  Person,
+  Settings,
+  Lock,
+  GridView,
+} from '@mui/icons-material';
+
 import Navbar from './components/Navbar';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -80,11 +113,15 @@ import BookUpload from './components/BookUpload';
 import UserManagement from './components/UserManagement';
 import SharedBook from './components/SharedBook';
 import ErrorBoundary from './components/ErrorBoundary';
+import AdminInterface from './components/AdminInterface';
+import PasswordChangeDialog from './components/PasswordChangeDialog';
 import api from './services/api';
+
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -95,6 +132,10 @@ function App() {
         .then(() => {
           const userData = JSON.parse(localStorage.getItem('user'));
           setUser(userData);
+          // Check if password change is required
+          if (userData?.must_change_password) {
+            setPasswordChangeRequired(true);
+          }
         })
         .catch(() => {
           localStorage.removeItem('token');
@@ -111,6 +152,11 @@ function App() {
     localStorage.setItem('user', JSON.stringify(userData));
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(userData);
+    
+    // Check if password change is required
+    if (userData.must_change_password) {
+      setPasswordChangeRequired(true);
+    }
   };
 
   const handleLogout = () => {
@@ -118,6 +164,17 @@ function App() {
     localStorage.removeItem('user');
     delete api.defaults.headers.common['Authorization'];
     setUser(null);
+    setPasswordChangeRequired(false);
+  };
+
+  const handlePasswordChanged = (success) => {
+    if (success) {
+      setPasswordChangeRequired(false);
+      // Update user data to reflect password change
+      const updatedUser = { ...user, must_change_password: false };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
   };
 
   if (loading) {
@@ -144,13 +201,23 @@ function App() {
           <Route path="/*" element={
             !user ? <Login onLogin={handleLogin} /> : (
               <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                {/* Password Change Dialog - Required */}
+                <PasswordChangeDialog
+                  open={passwordChangeRequired}
+                  onClose={handlePasswordChanged}
+                  required={passwordChangeRequired}
+                />
+                
                 <Navbar user={user} onLogout={handleLogout} />
                 <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/upload" element={<BookUpload />} />
                     {user.role === 'admin' && (
-                      <Route path="/users" element={<UserManagement />} />
+                      <>
+                        <Route path="/users" element={<UserManagement />} />
+                        <Route path="/admin" element={<AdminInterface />} />
+                      </>
                     )}
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
