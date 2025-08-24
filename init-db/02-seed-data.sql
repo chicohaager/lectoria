@@ -23,7 +23,7 @@ INSERT INTO users (id, username, email, password, role, must_change_password, is
      'admin@lectoria.local', 
      '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- admin123
      'admin', 
-     TRUE, 
+     FALSE, 
      TRUE, 
      NOW())
 ON CONFLICT (username) DO NOTHING;

@@ -5,7 +5,14 @@ const path = require('path');
 
 // Database configuration
 const dbConfig = {
-    connectionString: process.env.DATABASE_URL || 'postgresql://lectoria_user:lectoria_secure_2024@localhost:5432/lectoria',
+    connectionString: process.env.DATABASE_URL || (() => {
+        if (!process.env.DB_HOST || !process.env.DB_NAME || !process.env.DB_USER || !process.env.DB_PASSWORD) {
+            console.error('💥 ERROR: Database environment variables not set!');
+            console.error('Required: DB_HOST, DB_NAME, DB_USER, DB_PASSWORD');
+            process.exit(1);
+        }
+        return `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME}`;
+    })(),
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     max: 20, // Maximum pool connections
     idleTimeoutMillis: 30000,
@@ -37,10 +44,23 @@ class Database {
         try {
             const res = await this.pool.query(text, params);
             const duration = Date.now() - start;
-            console.log('🔍 Executed query', { text: text.substring(0, 50), duration, rows: res.rowCount });
+            
+            // Only log query info in development, never log parameters
+            if (process.env.NODE_ENV !== 'production') {
+                console.log('🔍 Query executed', { 
+                    operation: text.split(' ')[0].toUpperCase(),
+                    duration: `${duration}ms`, 
+                    rows: res.rowCount 
+                });
+            }
             return res;
         } catch (error) {
-            console.error('💥 Database query error:', error);
+            // Log error without exposing sensitive data
+            console.error('💥 Database query failed:', {
+                operation: text.split(' ')[0].toUpperCase(),
+                error: error.code,
+                message: error.message.replace(/\$\d+/g, '[PARAM]')
+            });
             throw error;
         }
     }
@@ -75,6 +95,11 @@ class Database {
             } else {
                 console.log(`✅ Found ${tablesResult.rows.length} tables:`, 
                     tablesResult.rows.map(row => row.table_name).join(', '));
+                
+                // Initialize translation system if tables exist
+                if (tablesResult.rows.some(row => row.table_name === 'categories')) {
+                    await this.createTranslationTables();
+                }
             }
 
             return true;
@@ -120,12 +145,15 @@ class Database {
     }
 
     async updateUser(id, updates) {
+        // Whitelist of allowed fields to prevent SQL injection
+        const allowedFields = ['role', 'is_active', 'must_change_password', 'email', 'username'];
+        
         const fields = [];
         const values = [];
         let paramCount = 1;
 
         Object.entries(updates).forEach(([key, value]) => {
-            if (value !== undefined) {
+            if (value !== undefined && allowedFields.includes(key)) {
                 fields.push(`${key} = $${paramCount}`);
                 values.push(value);
                 paramCount++;
@@ -150,6 +178,17 @@ class Database {
         return result.rows[0];
     }
 
+    async updateUserPassword(id, hashedPassword, passwordChangeDate) {
+        const query = `
+            UPDATE users 
+            SET password = $1, must_change_password = FALSE, last_password_change = $2, updated_at = NOW()
+            WHERE id = $3 
+            RETURNING id, username, email, role, must_change_password, last_password_change
+        `;
+        const result = await this.query(query, [hashedPassword, passwordChangeDate, id]);
+        return result.rows[0];
+    }
+
     // Category management functions
     async getAllCategories() {
         const query = 'SELECT * FROM categories ORDER BY name';
@@ -169,12 +208,15 @@ class Database {
     }
 
     async updateCategory(id, updates) {
+        // Whitelist of allowed fields to prevent SQL injection
+        const allowedFields = ['name', 'description', 'color', 'icon'];
+        
         const fields = [];
         const values = [];
         let paramCount = 1;
 
         Object.entries(updates).forEach(([key, value]) => {
-            if (value !== undefined) {
+            if (value !== undefined && allowedFields.includes(key)) {
                 fields.push(`${key} = $${paramCount}`);
                 values.push(value);
                 paramCount++;
@@ -200,57 +242,6 @@ class Database {
     }
 
     // Book management functions
-    async getBooks(filters = {}) {
-        let query = `
-            SELECT b.*, u.username as uploader_name, 
-                   c.name as category_name, c.color as category_color, c.icon as category_icon
-            FROM books b 
-            LEFT JOIN users u ON b.uploaded_by = u.id 
-            LEFT JOIN categories c ON b.category_id = c.id
-        `;
-        
-        const conditions = [];
-        const values = [];
-        let paramCount = 1;
-
-        if (filters.search) {
-            conditions.push(`(b.title ILIKE $${paramCount} OR b.author ILIKE $${paramCount})`);
-            values.push(`%${filters.search}%`);
-            paramCount++;
-        }
-
-        if (filters.type && filters.type !== 'all') {
-            conditions.push(`b.type = $${paramCount}`);
-            values.push(filters.type);
-            paramCount++;
-        }
-
-        if (filters.category_id) {
-            conditions.push(`b.category_id = $${paramCount}`);
-            values.push(filters.category_id);
-            paramCount++;
-        }
-
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
-        }
-
-        query += ' ORDER BY b.upload_date DESC';
-
-        if (filters.limit) {
-            query += ` LIMIT $${paramCount}`;
-            values.push(filters.limit);
-            paramCount++;
-        }
-
-        if (filters.offset) {
-            query += ` OFFSET $${paramCount}`;
-            values.push(filters.offset);
-        }
-
-        const result = await this.query(query, values);
-        return result.rows;
-    }
 
     async getBooksCount(filters = {}) {
         let query = 'SELECT COUNT(*) as total FROM books b';
@@ -337,6 +328,358 @@ class Database {
         `;
         const result = await this.query(query, [token]);
         return result.rows[0];
+    }
+
+    async getBookById(id) {
+        const query = 'SELECT * FROM books WHERE id = $1';
+        const result = await this.query(query, [id]);
+        return result.rows[0];
+    }
+
+    async incrementDownloadCount(bookId) {
+        const query = 'UPDATE books SET download_count = download_count + 1 WHERE id = $1 RETURNING *';
+        const result = await this.query(query, [bookId]);
+        return result.rows[0];
+    }
+
+    async getShareLinksForBook(bookId) {
+        const query = `
+            SELECT sl.*, u.username as created_by_name
+            FROM share_links sl
+            LEFT JOIN users u ON sl.created_by = u.id
+            WHERE sl.book_id = $1 AND sl.is_active = TRUE
+            ORDER BY sl.created_at DESC
+        `;
+        const result = await this.query(query, [bookId]);
+        return result.rows;
+    }
+
+    async getShareLinkWithBook(token) {
+        const query = `
+            SELECT sl.*, b.uploaded_by
+            FROM share_links sl
+            JOIN books b ON sl.book_id = b.id
+            WHERE sl.share_token = $1
+        `;
+        const result = await this.query(query, [token]);
+        return result.rows[0];
+    }
+
+    async deactivateShareLink(token) {
+        const query = 'UPDATE share_links SET is_active = FALSE WHERE share_token = $1 RETURNING *';
+        const result = await this.query(query, [token]);
+        return result.rows[0];
+    }
+
+    async getBookByShareToken(token) {
+        const query = `
+            SELECT sl.*, b.*, u.username as uploader_name
+            FROM share_links sl
+            JOIN books b ON sl.book_id = b.id
+            LEFT JOIN users u ON b.uploaded_by = u.id
+            WHERE sl.share_token = $1 AND sl.is_active = TRUE
+        `;
+        const result = await this.query(query, [token]);
+        return result.rows[0];
+    }
+
+    async incrementShareAccessCount(token) {
+        const query = 'UPDATE share_links SET access_count = access_count + 1 WHERE share_token = $1 RETURNING *';
+        const result = await this.query(query, [token]);
+        return result.rows[0];
+    }
+
+    async getAllBooksForExport() {
+        const query = `
+            SELECT b.*, u.username as uploader_name, c.name as category_name
+            FROM books b
+            LEFT JOIN users u ON b.uploaded_by = u.id
+            LEFT JOIN categories c ON b.category_id = c.id
+            ORDER BY b.upload_date DESC
+        `;
+        const result = await this.query(query);
+        return result.rows;
+    }
+
+    // Initialize database method to create tables and seed data if needed
+    async initializeDatabase() {
+        try {
+            await this.initialize();
+            
+            // Check if we have any users - if not, create default admin
+            const userCount = await this.query('SELECT COUNT(*) as count FROM users');
+            if (userCount.rows[0].count === '0') {
+                console.log('🔧 No users found, creating default admin user...');
+                
+                const bcrypt = require('bcryptjs');
+                const { v4: uuidv4 } = require('uuid');
+                
+                const adminData = {
+                    id: uuidv4(),
+                    username: 'admin',
+                    email: 'admin@lectoria.local',
+                    password: bcrypt.hashSync('admin123', 10),
+                    role: 'admin',
+                    must_change_password: false // Fix: Set to false to prevent infinite loop
+                };
+
+                await this.query(`
+                    INSERT INTO users (id, username, email, password, role, must_change_password, is_active) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `, [adminData.id, adminData.username, adminData.email, adminData.password, 
+                    adminData.role, adminData.must_change_password, true]);
+                
+                console.log('✅ Default admin user created (admin/admin123)');
+            }
+
+            return true;
+        } catch (error) {
+            console.error('💥 Database initialization failed:', error);
+            throw error;
+        }
+    }
+
+    // Translation system methods
+    async createTranslationTables() {
+        try {
+            // Create translations table for static UI text
+            await this.query(`
+                CREATE TABLE IF NOT EXISTS translations (
+                    id SERIAL PRIMARY KEY,
+                    translation_key VARCHAR(255) NOT NULL,
+                    language VARCHAR(5) NOT NULL,
+                    value TEXT NOT NULL,
+                    context VARCHAR(100) DEFAULT 'ui',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(translation_key, language, context)
+                )
+            `);
+
+            // Create category_translations table for dynamic category content
+            await this.query(`
+                CREATE TABLE IF NOT EXISTS category_translations (
+                    id SERIAL PRIMARY KEY,
+                    category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+                    language VARCHAR(5) NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(category_id, language)
+                )
+            `);
+
+            console.log('✅ Translation tables created/verified');
+            
+            // Check if we need to migrate existing category data
+            await this.migrateExistingCategoryTranslations();
+            
+        } catch (error) {
+            console.error('💥 Failed to create translation tables:', error);
+            throw error;
+        }
+    }
+
+    async migrateExistingCategoryTranslations() {
+        try {
+            // Check if we already have translations
+            const existingTranslations = await this.query(
+                'SELECT COUNT(*) as count FROM category_translations'
+            );
+            
+            if (existingTranslations.rows[0].count > 0) {
+                console.log('📚 Category translations already exist, skipping migration');
+                return;
+            }
+
+            console.log('🔄 Migrating existing categories to translation system...');
+
+            // Get all existing categories
+            const categories = await this.query('SELECT * FROM categories ORDER BY id');
+            
+            if (categories.rows.length === 0) {
+                console.log('📝 No categories to migrate');
+                return;
+            }
+
+            // Translation mappings for existing German categories
+            const categoryTranslations = {
+                'Biographien': { en: 'Biographies', de: 'Biographien' },
+                'Comics': { en: 'Comics', de: 'Comics' },
+                'Geschichte': { en: 'History', de: 'Geschichte' },
+                'Kinderbücher': { en: 'Children\'s Books', de: 'Kinderbücher' },
+                'Kochbücher': { en: 'Cookbooks', de: 'Kochbücher' },
+                'Natur': { en: 'Nature', de: 'Natur' },
+                'Romane': { en: 'Novels', de: 'Romane' },
+                'Sachbücher': { en: 'Non-Fiction', de: 'Sachbücher' },
+                'Technik': { en: 'Technology', de: 'Technik' },
+                'Wissenschaft': { en: 'Science', de: 'Wissenschaft' },
+                'Zeitschriften': { en: 'Magazines', de: 'Zeitschriften' }
+            };
+
+            const descriptionTranslations = {
+                'Lebensbeschreibungen': { en: 'Life descriptions', de: 'Lebensbeschreibungen' },
+                'Graphic Novels und Comics': { en: 'Graphic novels and comics', de: 'Graphic Novels und Comics' },
+                'Historische Werke': { en: 'Historical works', de: 'Historische Werke' },
+                'Keine Beschreibung': { en: 'No description', de: 'Keine Beschreibung' },
+                'Literatur für Kinder': { en: 'Literature for children', de: 'Literatur für Kinder' },
+                'Rezepte und Kulinarisches': { en: 'Recipes and culinary', de: 'Rezepte und Kulinarisches' },
+                'alles zum Thema Natur': { en: 'Everything about nature', de: 'alles zum Thema Natur' },
+                'Belletristik und Unterhaltung': { en: 'Fiction and entertainment', de: 'Belletristik und Unterhaltung' },
+                'Fach- und Sachbücher': { en: 'Professional and reference books', de: 'Fach- und Sachbücher' },
+                'Technische Literatur': { en: 'Technical literature', de: 'Technische Literatur' },
+                'Wissenschaftliche Publikationen': { en: 'Scientific publications', de: 'Wissenschaftliche Publikationen' },
+                'Magazine und Periodika': { en: 'Magazines and periodicals', de: 'Magazine und Periodika' }
+            };
+
+            // Insert translations for each category
+            for (const category of categories.rows) {
+                const nameTranslations = categoryTranslations[category.name];
+                const descTranslations = descriptionTranslations[category.description];
+                
+                // Insert German (original)
+                await this.query(`
+                    INSERT INTO category_translations (category_id, language, name, description)
+                    VALUES ($1, 'de', $2, $3)
+                    ON CONFLICT (category_id, language) DO NOTHING
+                `, [category.id, category.name, category.description]);
+                
+                // Insert English translation
+                if (nameTranslations && nameTranslations.en) {
+                    await this.query(`
+                        INSERT INTO category_translations (category_id, language, name, description)
+                        VALUES ($1, 'en', $2, $3)
+                        ON CONFLICT (category_id, language) DO NOTHING
+                    `, [
+                        category.id, 
+                        nameTranslations.en, 
+                        descTranslations ? descTranslations.en : 'No description'
+                    ]);
+                }
+            }
+
+            console.log(`✅ Migrated ${categories.rows.length} categories to translation system`);
+
+        } catch (error) {
+            console.error('💥 Failed to migrate category translations:', error);
+            throw error;
+        }
+    }
+
+    // Get translated category data
+    async getCategoriesWithTranslations(language = 'en') {
+        try {
+            const query = `
+                SELECT 
+                    c.id, c.name as original_name, c.description as original_description, 
+                    c.color, c.icon, c.created_at,
+                    COALESCE(ct.name, c.name) as name,
+                    COALESCE(ct.description, c.description) as description
+                FROM categories c
+                LEFT JOIN category_translations ct ON c.id = ct.category_id AND ct.language = $1
+                ORDER BY c.id
+            `;
+            
+            const result = await this.query(query, [language]);
+            return result.rows;
+        } catch (error) {
+            console.error('💥 Failed to get categories with translations:', error);
+            throw error;
+        }
+    }
+
+    // Get translation by key
+    async getTranslation(key, language = 'en', context = 'ui') {
+        try {
+            const result = await this.query(
+                'SELECT value FROM translations WHERE translation_key = $1 AND language = $2 AND context = $3',
+                [key, language, context]
+            );
+            
+            return result.rows[0]?.value || null;
+        } catch (error) {
+            console.error('💥 Failed to get translation:', error);
+            return null;
+        }
+    }
+
+    // Set/update translation
+    async setTranslation(key, language, value, context = 'ui') {
+        try {
+            await this.query(`
+                INSERT INTO translations (translation_key, language, value, context, updated_at)
+                VALUES ($1, $2, $3, $4, NOW())
+                ON CONFLICT (translation_key, language, context)
+                DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+            `, [key, language, value, context]);
+            
+            return true;
+        } catch (error) {
+            console.error('💥 Failed to set translation:', error);
+            return false;
+        }
+    }
+
+    // Combined method for books with count
+    async getBooks(filters = {}) {
+        // Get total count first
+        const total = await this.getBooksCount(filters);
+        
+        // Get books
+        let query = `
+            SELECT b.*, u.username as uploader_name, 
+                   c.name as category_name, c.color as category_color, c.icon as category_icon
+            FROM books b 
+            LEFT JOIN users u ON b.uploaded_by = u.id 
+            LEFT JOIN categories c ON b.category_id = c.id
+        `;
+        
+        const conditions = [];
+        const values = [];
+        let paramCount = 1;
+
+        if (filters.search) {
+            conditions.push(`(b.title ILIKE $${paramCount} OR b.author ILIKE $${paramCount})`);
+            values.push(`%${filters.search}%`);
+            paramCount++;
+        }
+
+        if (filters.type && filters.type !== 'all') {
+            conditions.push(`b.type = $${paramCount}`);
+            values.push(filters.type);
+            paramCount++;
+        }
+
+        if (filters.category_id) {
+            conditions.push(`b.category_id = $${paramCount}`);
+            values.push(filters.category_id);
+            paramCount++;
+        }
+
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        query += ' ORDER BY b.upload_date DESC';
+
+        if (filters.limit) {
+            query += ` LIMIT $${paramCount}`;
+            values.push(filters.limit);
+            paramCount++;
+        }
+
+        if (filters.offset) {
+            query += ` OFFSET $${paramCount}`;
+            values.push(filters.offset);
+        }
+
+        const result = await this.query(query, values);
+        
+        return {
+            books: result.rows,
+            total: total
+        };
     }
 
     // Close database connection

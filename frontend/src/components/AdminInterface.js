@@ -77,7 +77,7 @@ function TabPanel({ children, value, index, ...other }) {
 }
 
 function AdminInterface() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [tabValue, setTabValue] = useState(0);
   const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -150,7 +150,7 @@ function AdminInterface() {
       const response = await api.get('/api/users');
       setUsers(response.data);
     } catch (err) {
-      setError('Fehler beim Laden der Benutzer');
+      setError(t('admin.errorLoadingUsers') || 'Error loading users');
     } finally {
       setLoading(false);
     }
@@ -158,10 +158,11 @@ function AdminInterface() {
 
   const loadCategories = async () => {
     try {
-      const response = await api.get('/api/categories');
+      // Use new translated categories API
+      const response = await api.get(`/api/categories/translated?lang=${language}`);
       setCategories(response.data);
     } catch (err) {
-      setError('Fehler beim Laden der Kategorien');
+      setError(t('admin.errorLoadingCategories') || 'Error loading categories');
     }
   };
 
@@ -192,25 +193,25 @@ function AdminInterface() {
         });
       }
 
-      setSuccess('Benutzer erfolgreich aktualisiert');
+      setSuccess(t('admin.userUpdated') || 'User updated successfully');
       setEditUserDialog(false);
       loadUsers();
     } catch (err) {
-      setError(err.response?.data?.error || 'Fehler beim Aktualisieren des Benutzers');
+      setError(err.response?.data?.error || t('admin.errorUpdatingUser'));
     }
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Möchten Sie diesen Benutzer wirklich löschen?')) {
+    if (!window.confirm(t('admin.confirmDeleteUser') || 'Are you sure you want to delete this user?')) {
       return;
     }
     
     try {
       await api.delete(`/api/users/${userId}`);
-      setSuccess('Benutzer erfolgreich gelöscht');
+      setSuccess(t('admin.userDeleted') || 'User deleted successfully');
       loadUsers();
     } catch (err) {
-      setError(err.response?.data?.error || 'Fehler beim Löschen des Benutzers');
+      setError(err.response?.data?.error || t('admin.errorDeletingUser'));
     }
   };
 
@@ -229,10 +230,10 @@ function AdminInterface() {
     try {
       if (selectedCategory) {
         await api.put(`/api/categories/${selectedCategory.id}`, categoryFormData);
-        setSuccess('Kategorie erfolgreich aktualisiert');
+        setSuccess(t('admin.categoryUpdated') || 'Category updated successfully');
       } else {
         await api.post('/api/categories', categoryFormData);
-        setSuccess('Kategorie erfolgreich erstellt');
+        setSuccess(t('admin.categoryCreated') || 'Category created successfully');
       }
       setCategoryDialog(false);
       setSelectedCategory(null);
@@ -244,21 +245,21 @@ function AdminInterface() {
       });
       loadCategories();
     } catch (err) {
-      setError(err.response?.data?.error || 'Fehler beim Speichern der Kategorie');
+      setError(err.response?.data?.error || t('admin.errorSavingCategory') || 'Error saving category');
     }
   };
 
   const handleDeleteCategory = async (categoryId) => {
-    if (!window.confirm('Möchten Sie diese Kategorie wirklich löschen? Bücher in dieser Kategorie werden nicht gelöscht.')) {
+    if (!window.confirm(t('admin.confirmDeleteCategory') || 'Are you sure you want to delete this category? Books in this category will not be deleted.')) {
       return;
     }
     
     try {
       await api.delete(`/api/categories/${categoryId}`);
-      setSuccess('Kategorie erfolgreich gelöscht');
+      setSuccess(t('admin.categoryDeleted') || 'Category deleted successfully');
       loadCategories();
     } catch (err) {
-      setError('Fehler beim Löschen der Kategorie');
+      setError(t('admin.errorDeletingCategory') || 'Error deleting category');
     }
   };
 
@@ -285,7 +286,7 @@ function AdminInterface() {
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       }
 
-      setSuccess('Passwort erfolgreich geändert');
+      setSuccess(t('admin.passwordChanged') || 'Password changed successfully');
       setPasswordDialog(false);
       setPasswordFormData({
         currentPassword: '',
@@ -293,13 +294,13 @@ function AdminInterface() {
         confirmPassword: '',
       });
     } catch (err) {
-      setError(err.response?.data?.error || 'Fehler beim Ändern des Passworts');
+      setError(err.response?.data?.error || t('admin.errorChangingPassword'));
     }
   };
 
   const handleCalibreImport = async () => {
     if (!calibrePath.trim()) {
-      setError('Bitte geben Sie den Pfad zu Ihrer Calibre-Bibliothek ein');
+      setError(t('admin.calibrePathRequired') || 'Please enter the path to your Calibre library');
       return;
     }
 
@@ -319,7 +320,7 @@ function AdminInterface() {
       setCalibrePath('');
       
     } catch (err) {
-      setError(err.response?.data?.error || 'Fehler beim Calibre-Import');
+      setError(err.response?.data?.error || t('admin.errorCalibreImport'));
     } finally {
       setCalibreImporting(false);
     }
@@ -336,9 +337,10 @@ function AdminInterface() {
   const loadBackups = async () => {
     try {
       const response = await api.get('/api/backup/list');
-      setBackups(response.data.backups);
+      setBackups(response.data?.backups || []);
     } catch (err) {
       console.error('Failed to load backups:', err);
+      setBackups([]); // Ensure backups is always an array
     }
   };
 
@@ -349,12 +351,12 @@ function AdminInterface() {
       
       const response = await api.post('/api/backup/create');
       
-      setSuccess(`Backup erfolgreich erstellt: ${response.data.backup.filename}`);
+      setSuccess(`Backup erfolgreich erstellt: ${response.data.filename}`);
       await loadBackups(); // Reload backup list
       
     } catch (error) {
       console.error('Backup creation failed:', error);
-      setError(error.response?.data?.error || 'Fehler beim Erstellen des Backups');
+      setError(error.response?.data?.error || t('admin.errorCreatingBackup'));
     } finally {
       setBackupCreating(false);
     }
@@ -363,7 +365,7 @@ function AdminInterface() {
   const handleDownloadBackup = async (filename) => {
     try {
       // Use axios with proper authentication headers instead of window.open
-      const response = await api.get(`/api/backup/download/${filename}`, {
+      const response = await api.get('/api/download/archive', {
         responseType: 'blob',
         headers: {
           'Accept': 'application/zip'
@@ -381,10 +383,10 @@ function AdminInterface() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      setSuccess('Backup erfolgreich heruntergeladen');
+      setSuccess(t('admin.backupDownloaded') || 'Backup downloaded successfully');
     } catch (error) {
       console.error('Backup download failed:', error);
-      setError(error.response?.data?.error || 'Fehler beim Herunterladen des Backups');
+      setError(error.response?.data?.error || t('admin.errorDownloadingBackup'));
     }
   };
 
@@ -395,11 +397,11 @@ function AdminInterface() {
 
     try {
       await api.delete(`/api/backup/${filename}`);
-      setSuccess('Backup erfolgreich gelöscht');
+      setSuccess(t('admin.backupDeleted') || 'Backup deleted successfully');
       await loadBackups(); // Reload backup list
     } catch (error) {
       console.error('Backup deletion failed:', error);
-      setError(error.response?.data?.error || 'Fehler beim Löschen des Backups');
+      setError(error.response?.data?.error || t('admin.errorDeletingBackup'));
     }
   };
 
@@ -429,7 +431,7 @@ function AdminInterface() {
       
     } catch (error) {
       console.error('Backup restore failed:', error);
-      setError(error.response?.data?.error || 'Fehler beim Wiederherstellen des Backups');
+      setError(error.response?.data?.error || t('admin.errorRestoringBackup'));
     } finally {
       setRestoreUploading(false);
     }
@@ -498,7 +500,7 @@ function AdminInterface() {
           <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">{t('admin.userManagement')}</Typography>
             <Typography variant="body2" color="text.secondary">
-              {users.length} {t('admin.usersRegistered')}
+              {users?.length || 0} {t('admin.usersRegistered')}
             </Typography>
           </Box>
 
@@ -517,7 +519,7 @@ function AdminInterface() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.map((user) => (
+                {(users || []).map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -550,7 +552,7 @@ function AdminInterface() {
                     <TableCell>
                       <Chip
                         icon={user.is_active ? <CheckCircle /> : <Cancel />}
-                        label={user.is_active ? 'Aktiv' : 'Gesperrt'}
+                        label={user.is_active ? t('admin.active') : t('admin.inactive')}
                         color={user.is_active ? 'success' : 'error'}
                         size="small"
                       />
@@ -559,14 +561,14 @@ function AdminInterface() {
                       {user.must_change_password ? (
                         <Chip
                           icon={<Lock />}
-                          label="Erforderlich"
+                          label={t('admin.required')}
                           color="warning"
                           size="small"
                         />
                       ) : (
                         <Chip
                           icon={<LockOpen />}
-                          label="Nicht erforderlich"
+                          label={t('admin.optional')}
                           color="default"
                           size="small"
                         />
@@ -583,7 +585,7 @@ function AdminInterface() {
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Bearbeiten">
+                      <Tooltip title={t('admin.edit')}>
                         <IconButton
                           size="small"
                           onClick={() => handleEditUser(user)}
@@ -591,7 +593,7 @@ function AdminInterface() {
                           <Edit />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Löschen">
+                      <Tooltip title={t('admin.delete')}>
                         <IconButton
                           size="small"
                           color="error"
@@ -608,7 +610,7 @@ function AdminInterface() {
             </Table>
           </TableContainer>
 
-          {users.length === 0 && (
+          {users?.length === 0 && (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <People sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary">
@@ -621,7 +623,7 @@ function AdminInterface() {
         <TabPanel value={tabValue} index={1}>
           {/* Category Management */}
           <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Kategorienverwaltung</Typography>
+            <Typography variant="h6">{t('admin.categoryManagement')}</Typography>
             <Button
               variant="contained"
               startIcon={<Add />}
@@ -636,12 +638,12 @@ function AdminInterface() {
                 setCategoryDialog(true);
               }}
             >
-              Neue Kategorie
+              {t('admin.newCategory')}
             </Button>
           </Box>
 
           <Grid container spacing={2}>
-            {categories.map((category) => (
+            {(categories || []).map((category) => (
               <Grid item xs={12} sm={6} md={4} key={category.id}>
                 <Card>
                   <CardContent>
@@ -662,7 +664,7 @@ function AdminInterface() {
                       <Box>
                         <Typography variant="h6">{category.name}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {category.description || 'Keine Beschreibung'}
+                          {category.description || t('admin.noDescription')}
                         </Typography>
                       </Box>
                     </Box>
@@ -687,7 +689,7 @@ function AdminInterface() {
             ))}
           </Grid>
 
-          {categories.length === 0 && (
+          {categories?.length === 0 && (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <Category sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary">
@@ -703,47 +705,47 @@ function AdminInterface() {
         <TabPanel value={tabValue} index={2}>
           {/* Calibre Import */}
           <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Calibre Import</Typography>
+            <Typography variant="h6">{t('admin.tabCalibreImport')}</Typography>
             <Button
               variant="contained"
               startIcon={<CloudDownload />}
               onClick={() => setCalibreDialog(true)}
             >
-              Calibre-Bibliothek importieren
+              {t('admin.importCalibreLibrary')}
             </Button>
           </Box>
 
           <Typography variant="body1" paragraph>
-            Importieren Sie Ihre bestehende Calibre-Bibliothek in Lectoria. 
+            {t('admin.calibreImportDescription')} 
             Unterstützte Formate: PDF und EPUB.
           </Typography>
 
           <Alert severity="info" sx={{ mb: 2 }}>
-            <strong>Hinweis:</strong> Geben Sie den Pfad zu Ihrem Calibre-Bibliotheksordner an. 
+            <strong>{t('admin.note')}:</strong> {t('admin.calibrePathNote')} 
             Dieser sollte die Datei "metadata.db" enthalten.
           </Alert>
 
           {calibreResult && (
             <Alert 
-              severity={calibreResult.errors.length > 0 ? "warning" : "success"} 
+              severity={calibreResult.errors?.length > 0 ? "warning" : "success"} 
               sx={{ mb: 2 }}
             >
               <strong>Import-Ergebnis:</strong>
               <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-                <li>{calibreResult.imported} Bücher erfolgreich importiert</li>
-                <li>{calibreResult.skipped} Bücher übersprungen (bereits vorhanden oder nicht unterstützt)</li>
-                {calibreResult.errors.length > 0 && (
-                  <li>{calibreResult.errors.length} Fehler aufgetreten</li>
+                <li>{calibreResult.imported || 0} {t('admin.booksImported')}</li>
+                <li>{calibreResult.skipped || 0} Bücher übersprungen (bereits vorhanden oder nicht unterstützt)</li>
+                {calibreResult.errors?.length > 0 && (
+                  <li>{calibreResult.errors?.length} Fehler aufgetreten</li>
                 )}
               </ul>
-              {calibreResult.errors.length > 0 && (
+              {calibreResult.errors?.length > 0 && (
                 <Box sx={{ mt: 1 }}>
                   <Typography variant="body2" fontWeight="bold">Fehlerdetails:</Typography>
-                  {calibreResult.errors.slice(0, 5).map((error, index) => (
+                  {(calibreResult.errors || []).slice(0, 5).map((error, index) => (
                     <Typography key={index} variant="body2">• {error}</Typography>
                   ))}
-                  {calibreResult.errors.length > 5 && (
-                    <Typography variant="body2">... und {calibreResult.errors.length - 5} weitere</Typography>
+                  {calibreResult.errors?.length > 5 && (
+                    <Typography variant="body2">... und {calibreResult.errors?.length - 5} weitere</Typography>
                   )}
                 </Box>
               )}
@@ -758,7 +760,7 @@ function AdminInterface() {
               Backup & Restore
             </Typography>
             <Typography variant="body1" paragraph>
-              Erstellen Sie vollständige Backups Ihrer Bibliothek oder stellen Sie aus einem Backup wieder her.
+              {t('admin.backupRestoreDescription')}
             </Typography>
           </Box>
 
@@ -766,18 +768,18 @@ function AdminInterface() {
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Backup erstellen</Typography>
+                <Typography variant="h6">{t('admin.createBackup')}</Typography>
                 <Button
                   variant="contained"
                   startIcon={<Backup />}
                   onClick={handleCreateBackup}
                   disabled={backupCreating}
                 >
-                  {backupCreating ? 'Wird erstellt...' : 'Backup erstellen'}
+                  {backupCreating ? t('admin.creating') || 'Creating...' : t('admin.createBackup') || 'Create Backup'}
                 </Button>
               </Box>
               <Typography variant="body2" color="text.secondary">
-                Erstellt eine vollständige ZIP-Datei mit allen Büchern, Metadaten, Benutzern und Kategorien.
+                {t('admin.backupCreationDescription')}
               </Typography>
             </CardContent>
           </Card>
@@ -786,17 +788,17 @@ function AdminInterface() {
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Backup wiederherstellen</Typography>
+                <Typography variant="h6">{t('admin.restoreBackup')}</Typography>
                 <Button
                   variant="outlined"
                   startIcon={<RestorePage />}
                   onClick={() => setRestoreDialog(true)}
                 >
-                  Wiederherstellen
+                  {t('admin.restore')}
                 </Button>
               </Box>
               <Typography variant="body2" color="text.secondary">
-                Stellt Daten aus einem Lectoria-Backup wieder her.
+                {t('admin.restoreDescription')}
               </Typography>
             </CardContent>
           </Card>
@@ -805,10 +807,10 @@ function AdminInterface() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Verfügbare Backups
+                {t('admin.availableBackups')}
               </Typography>
               
-              {backups.length === 0 ? (
+              {backups?.length === 0 ? (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                   Keine Backups vorhanden
                 </Typography>
@@ -817,14 +819,14 @@ function AdminInterface() {
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell>Dateiname</TableCell>
-                        <TableCell>Erstellt am</TableCell>
-                        <TableCell>Größe</TableCell>
-                        <TableCell>Aktionen</TableCell>
+                        <TableCell>{t('admin.filename')}</TableCell>
+                        <TableCell>{t('admin.createdAt')}</TableCell>
+                        <TableCell>{t('admin.size')}</TableCell>
+                        <TableCell>{t('admin.actions')}</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {backups.map((backup) => (
+                      {(backups || []).map((backup) => (
                         <TableRow key={backup.filename}>
                           <TableCell>{backup.filename}</TableCell>
                           <TableCell>{formatDate(backup.created_at)}</TableCell>
@@ -832,7 +834,7 @@ function AdminInterface() {
                             {(backup.size / 1024 / 1024).toFixed(1)} MB
                           </TableCell>
                           <TableCell>
-                            <Tooltip title="Herunterladen">
+                            <Tooltip title={t('dashboard.download')}>
                               <IconButton 
                                 onClick={() => handleDownloadBackup(backup.filename)}
                                 size="small"
@@ -840,7 +842,7 @@ function AdminInterface() {
                                 <GetApp />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Löschen">
+                            <Tooltip title={t('admin.delete')}>
                               <IconButton 
                                 onClick={() => handleDeleteBackup(backup.filename)}
                                 size="small"
@@ -877,7 +879,7 @@ function AdminInterface() {
               <InputLabel>Rolle</InputLabel>
               <Select
                 value={userFormData.role}
-                label="Rolle"
+                label={t('admin.role')}
                 onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })}
               >
                 <MenuItem value="user">Benutzer</MenuItem>
@@ -892,7 +894,7 @@ function AdminInterface() {
                   onChange={(e) => setUserFormData({ ...userFormData, is_active: e.target.checked })}
                 />
               }
-              label="Konto aktiv"
+              label={t('admin.accountActive') || 'Account Active'}
             />
 
             <FormControlLabel
@@ -929,12 +931,12 @@ function AdminInterface() {
         fullWidth
       >
         <DialogTitle>
-          {selectedCategory ? 'Kategorie bearbeiten' : 'Neue Kategorie'}
+          {selectedCategory ? t('admin.editCategory') || 'Edit Category' : t('admin.newCategory') || 'New Category'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
-              label="Name"
+              label={t('admin.name') || 'Name'}
               value={categoryFormData.name}
               onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
               fullWidth
@@ -942,7 +944,7 @@ function AdminInterface() {
             />
 
             <TextField
-              label="Beschreibung"
+              label={t('admin.categoryDescription') || 'Description'}
               value={categoryFormData.description}
               onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
               fullWidth
@@ -952,7 +954,7 @@ function AdminInterface() {
 
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <TextField
-                label="Farbe"
+                label={t('admin.color') || 'Color'}
                 type="color"
                 value={categoryFormData.color}
                 onChange={(e) => setCategoryFormData({ ...categoryFormData, color: e.target.value })}
@@ -964,7 +966,7 @@ function AdminInterface() {
                 <InputLabel>Icon</InputLabel>
                 <Select
                   value={categoryFormData.icon}
-                  label="Icon"
+                  label={t('admin.icon') || 'Icon'}
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, icon: e.target.value })}
                 >
                   {iconOptions.map((icon) => (
@@ -1060,7 +1062,7 @@ function AdminInterface() {
                      passwordFormData.newPassword !== passwordFormData.confirmPassword}
               helperText={passwordFormData.confirmPassword && 
                          passwordFormData.newPassword !== passwordFormData.confirmPassword ? 
-                         "Passwörter stimmen nicht überein" : ""}
+                         t('admin.passwordMismatch') || 'Passwords do not match' : ''}
             />
           </Box>
         </DialogContent>
@@ -1118,7 +1120,7 @@ function AdminInterface() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <CloudDownload />
-          Calibre-Bibliothek importieren
+          {t('admin.importCalibreLibrary')}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1149,16 +1151,16 @@ function AdminInterface() {
 
             {calibreResult && (
               <Alert 
-                severity={calibreResult.errors.length > 0 ? "warning" : "success"}
+                severity={calibreResult.errors?.length > 0 ? "warning" : "success"}
               >
                 <Typography variant="body2">
                   <strong>Import abgeschlossen:</strong>
                 </Typography>
                 <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-                  <li>{calibreResult.imported} Bücher erfolgreich importiert</li>
-                  <li>{calibreResult.skipped} Bücher übersprungen</li>
-                  {calibreResult.errors.length > 0 && (
-                    <li>{calibreResult.errors.length} Fehler</li>
+                  <li>{calibreResult.imported || 0} {t('admin.booksImported')}</li>
+                  <li>{calibreResult.skipped || 0} Bücher übersprungen</li>
+                  {calibreResult.errors?.length > 0 && (
+                    <li>{calibreResult.errors?.length} Fehler</li>
                   )}
                 </ul>
               </Alert>
@@ -1167,7 +1169,7 @@ function AdminInterface() {
         </DialogContent>
         <DialogActions>
           <Button onClick={resetCalibreDialog} disabled={calibreImporting}>
-            {calibreResult ? 'Schließen' : 'Abbrechen'}
+            {calibreResult ? t('admin.close') : t('admin.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -1188,16 +1190,16 @@ function AdminInterface() {
         fullWidth
       >
         <DialogTitle>
-          Backup wiederherstellen
+          {t('admin.restoreBackup')}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ mb: 3 }}>
             <Typography variant="body1" paragraph>
-              Wählen Sie eine Backup-ZIP-Datei aus, um Ihre Bibliothek wiederherzustellen.
+              {t('admin.selectBackupFile')}
             </Typography>
             
             <Alert severity="warning" sx={{ mb: 2 }}>
-              <strong>Achtung:</strong> Das Wiederherstellen kann bestehende Daten überschreiben. 
+              <strong>{t('admin.warning')}:</strong> {t('admin.restoreWarning')} 
               Erstellen Sie zuerst ein Backup Ihrer aktuellen Daten.
             </Alert>
 
@@ -1211,7 +1213,7 @@ function AdminInterface() {
                 startIcon={<CloudUpload />}
                 sx={{ mb: 2 }}
               >
-                ZIP-Datei auswählen
+                {t('admin.selectZipFile')}
                 <input
                   type="file"
                   hidden
@@ -1251,7 +1253,7 @@ function AdminInterface() {
                     onChange={(e) => setRestoreOptions(prev => ({ ...prev, preserveUsers: e.target.checked }))}
                   />
                 }
-                label="Benutzer beibehalten"
+                label={t('admin.keepUsers') || 'Keep Users'}
               />
               <Typography variant="body2" color="text.secondary" sx={{ ml: 4, mb: 1 }}>
                 Aktiviert: Benutzer aus Backup werden nicht wiederhergestellt
@@ -1264,7 +1266,7 @@ function AdminInterface() {
                     onChange={(e) => setRestoreOptions(prev => ({ ...prev, preserveCategories: e.target.checked }))}
                   />
                 }
-                label="Kategorien beibehalten"
+                label={t('admin.keepCategories') || 'Keep Categories'}
               />
               <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
                 Aktiviert: Vorhandene Kategorien werden beibehalten
@@ -1282,7 +1284,7 @@ function AdminInterface() {
             disabled={!restoreFile || restoreUploading}
             startIcon={restoreUploading ? <CloudUpload /> : <RestorePage />}
           >
-            {restoreUploading ? 'Wird wiederhergestellt...' : 'Wiederherstellen'}
+            {restoreUploading ? t('admin.restoring') : t('admin.restore')}
           </Button>
         </DialogActions>
       </Dialog>

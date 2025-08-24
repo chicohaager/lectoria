@@ -1,22 +1,31 @@
-// server/app.js
+// backend_server.js - PostgreSQL version
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs-extra');
 const { v4: uuidv4 } = require('uuid');
 
+// Import PostgreSQL database
+const database = require('./database');
+const axios = require('axios');
+const archiver = require('archiver');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const QRCode = require('qrcode');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
-
-// Environment validation
-if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
-  console.warn('⚠️  WARNING: JWT_SECRET not set in production! Using fallback secret.');
+// Environment validation - Fail hard if critical secrets are missing
+if (!process.env.JWT_SECRET) {
+  console.error('💥 ERROR: JWT_SECRET environment variable is required!');
+  console.error('Generate a secure secret with: openssl rand -base64 64');
+  process.exit(1);
 }
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🔐 JWT Secret: ${JWT_SECRET === 'fallback-secret-key' ? 'FALLBACK (development only)' : 'Custom (secure)'}`);
@@ -26,9 +35,28 @@ const loginAttempts = new Map();
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes
 
+// Enhanced IP detection for better security
+const getClientIP = (req) => {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+         req.headers['x-real-ip'] ||
+         req.connection.remoteAddress ||
+         req.socket.remoteAddress ||
+         req.ip ||
+         'unknown';
+};
+
 const rateLimitAuth = (req, res, next) => {
-  const ip = req.ip || req.connection.remoteAddress;
+  const ip = getClientIP(req);
   const now = Date.now();
+  
+  // Periodic cleanup of old entries to prevent memory leaks
+  if (Math.random() < 0.01) { // 1% chance to run cleanup
+    for (const [key, value] of loginAttempts.entries()) {
+      if ((now - value.lastAttempt) > LOCKOUT_TIME * 2) {
+        loginAttempts.delete(key);
+      }
+    }
+  }
   
   if (loginAttempts.has(ip)) {
     const attempts = loginAttempts.get(ip);
@@ -78,158 +106,18 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' })); // Prevent large JSON payloads
 app.use(express.static(path.join(__dirname, './frontend/build')));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Database Setup
-const dbPath = path.join(__dirname, '../data/bookmanager.db');
-fs.ensureDirSync(path.dirname(dbPath));
-const db = new sqlite3.Database(dbPath);
+app.use('/uploads', express.static(path.join(__dirname, './uploads')));
 
 // Initialize Database
-db.serialize(() => {
-  // Users table with password change tracking
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT DEFAULT 'user',
-    must_change_password BOOLEAN DEFAULT 0,
-    last_password_change DATETIME,
-    is_active BOOLEAN DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  // Books table with category support
-  db.run(`CREATE TABLE IF NOT EXISTS books (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    author TEXT,
-    description TEXT,
-    type TEXT NOT NULL,
-    category_id TEXT,
-    filename TEXT NOT NULL,
-    filepath TEXT NOT NULL,
-    file_size INTEGER,
-    cover_image TEXT,
-    download_count INTEGER DEFAULT 0,
-    upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    uploaded_by TEXT,
-    FOREIGN KEY (uploaded_by) REFERENCES users (id),
-    FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET NULL
-  )`);
-
-  // Categories table
-  db.run(`CREATE TABLE IF NOT EXISTS categories (
-    id TEXT PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    color TEXT DEFAULT '#1976d2',
-    icon TEXT DEFAULT 'folder',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  // Shareable links table
-  db.run(`CREATE TABLE IF NOT EXISTS share_links (
-    id TEXT PRIMARY KEY,
-    book_id TEXT NOT NULL,
-    share_token TEXT UNIQUE NOT NULL,
-    created_by TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    expires_at DATETIME,
-    is_active BOOLEAN DEFAULT 1,
-    access_count INTEGER DEFAULT 0,
-    FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users (id)
-  )`);
-
-  // Create indexes for performance
-  db.run(`CREATE INDEX IF NOT EXISTS idx_books_uploaded_by ON books (uploaded_by)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_books_upload_date ON books (upload_date DESC)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_share_links_token ON share_links (share_token)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_share_links_book_id ON share_links (book_id)`);
-
-  // Add columns if they don't exist (for existing databases)
-  db.run(`PRAGMA table_info(books)`, [], function(err) {
-    if (!err) {
-      db.all(`PRAGMA table_info(books)`, [], (err, columns) => {
-        const columnNames = columns.map(col => col.name);
-        
-        if (!columnNames.includes('cover_image')) {
-          db.run(`ALTER TABLE books ADD COLUMN cover_image TEXT`);
-          console.log('✅ Added cover_image column to books table');
-        }
-        
-        if (!columnNames.includes('download_count')) {
-          db.run(`ALTER TABLE books ADD COLUMN download_count INTEGER DEFAULT 0`);
-          console.log('✅ Added download_count column to books table');
-        }
-      });
-    }
-  });
-
-  // Create default admin user with password change requirement
-  const defaultAdmin = {
-    id: uuidv4(),
-    username: 'admin',
-    email: 'admin@bookmanager.com',
-    password: bcrypt.hashSync('admin123', 10),
-    role: 'admin',
-    must_change_password: 1
-  };
-
-  db.get("SELECT * FROM users WHERE username = ?", ['admin'], (err, row) => {
-    if (err) {
-      console.error('Error checking for admin user:', err);
-      return;
-    }
-    
-    if (!row) {
-      db.run(
-        "INSERT INTO users (id, username, email, password, role, must_change_password) VALUES (?, ?, ?, ?, ?, ?)",
-        [defaultAdmin.id, defaultAdmin.username, defaultAdmin.email, defaultAdmin.password, defaultAdmin.role, defaultAdmin.must_change_password],
-        function(err) {
-          if (err) {
-            console.error('Error creating default admin user:', err);
-          } else {
-            console.log('✅ Default admin user created successfully (password change required on first login)');
-          }
-        }
-      );
-    }
-  });
-
-  // Create default categories
-  const defaultCategories = [
-    { id: uuidv4(), name: 'Romane', description: 'Belletristik und Unterhaltung', color: '#e91e63', icon: 'auto_stories' },
-    { id: uuidv4(), name: 'Sachbücher', description: 'Fach- und Sachbücher', color: '#2196f3', icon: 'school' },
-    { id: uuidv4(), name: 'Zeitschriften', description: 'Magazine und Periodika', color: '#4caf50', icon: 'article' },
-    { id: uuidv4(), name: 'Wissenschaft', description: 'Wissenschaftliche Publikationen', color: '#9c27b0', icon: 'science' },
-    { id: uuidv4(), name: 'Technik', description: 'Technische Literatur', color: '#ff9800', icon: 'engineering' },
-    { id: uuidv4(), name: 'Kochbücher', description: 'Rezepte und Kulinarisches', color: '#795548', icon: 'restaurant' }
-  ];
-
-  db.get("SELECT COUNT(*) as count FROM categories", [], (err, row) => {
-    if (!err && row && row.count === 0) {
-      defaultCategories.forEach(category => {
-        db.run(
-          "INSERT INTO categories (id, name, description, color, icon) VALUES (?, ?, ?, ?, ?)",
-          [category.id, category.name, category.description, category.color, category.icon],
-          function(err) {
-            if (!err) {
-              console.log(`✅ Created category: ${category.name}`);
-            }
-          }
-        );
-      });
-    }
-  });
-});
+(async () => {
+  await database.initializeDatabase();
+  console.log('✅ PostgreSQL Database initialisiert');
+})();
 
 // File Upload Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads');
+    const uploadDir = path.join(__dirname, './uploads');
     fs.ensureDirSync(uploadDir);
     cb(null, uploadDir);
   },
@@ -297,50 +185,83 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Zugriff verweigert. Token erforderlich.' });
   }
 
-  jwt.verify(token, JWT_SECRET, {
-    algorithms: ['HS256'], // Prevent algorithm confusion attacks
-    issuer: JWT_OPTIONS.issuer,
-    audience: JWT_OPTIONS.audience
-  }, (err, user) => {
-    if (err) {
-      if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ error: 'Token ist abgelaufen. Bitte melden Sie sich erneut an.' });
-      } else if (err.name === 'JsonWebTokenError') {
-        return res.status(403).json({ error: 'Ungültiger Token.' });
-      } else if (err.name === 'NotBeforeError') {
-        return res.status(403).json({ error: 'Token ist noch nicht gültig.' });
-      } else {
-        return res.status(403).json({ error: 'Token-Validierung fehlgeschlagen.' });
-      }
-    }
+  // Validate token format and length
+  if (token.length > 1000) {
+    return res.status(403).json({ error: 'Token zu lang.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      algorithms: ['HS256'], // Prevent algorithm confusion attacks
+      issuer: JWT_OPTIONS.issuer,
+      audience: JWT_OPTIONS.audience,
+      maxAge: '24h' // Additional safety check
+    });
     
-    // Additional validation
-    if (!user.id || !user.username || !user.role) {
+    // Enhanced validation
+    if (!decoded.id || !decoded.username || !decoded.role) {
       return res.status(403).json({ error: 'Ungültiges Token-Format.' });
     }
+
+    // Check if token is too old (additional security layer)
+    const tokenAge = Date.now() / 1000 - decoded.iat;
+    if (tokenAge > 86400) { // 24 hours
+      return res.status(401).json({ error: 'Token ist abgelaufen.' });
+    }
+
+    // Validate role
+    if (!['admin', 'user'].includes(decoded.role)) {
+      return res.status(403).json({ error: 'Ungültige Benutzerrolle.' });
+    }
     
-    req.user = user;
+    req.user = decoded;
     next();
-  });
+  } catch (err) {
+    // Unified error handling with better security
+    let errorMessage = 'Token-Validierung fehlgeschlagen.';
+    let statusCode = 403;
+
+    if (err.name === 'TokenExpiredError') {
+      errorMessage = 'Token ist abgelaufen. Bitte melden Sie sich erneut an.';
+      statusCode = 401;
+    } else if (err.name === 'JsonWebTokenError') {
+      errorMessage = 'Ungültiger Token.';
+    } else if (err.name === 'NotBeforeError') {
+      errorMessage = 'Token ist noch nicht gültig.';
+    }
+
+    return res.status(statusCode).json({ error: errorMessage });
+  }
 };
 
 // Routes
 
 // User Authentication
-app.post('/api/auth/login', rateLimitAuth, (req, res) => {
+app.post('/api/auth/login', rateLimitAuth, async (req, res) => {
   const { username, password } = req.body;
-  const ip = req.ip || req.connection.remoteAddress;
+  const ip = getClientIP(req);
 
   if (!username || !password) {
     return res.status(400).json({ error: 'Benutzername und Passwort sind erforderlich' });
   }
 
-  db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
+  try {
+    const user = await database.getUserByUsername(username);
     
-    if (!user || !bcrypt.compareSync(password, user.password)) {
+    if (!user) {
+      // Track failed login attempts
+      const now = Date.now();
+      const attempts = loginAttempts.get(ip) || { count: 0, lastAttempt: now };
+      attempts.count++;
+      attempts.lastAttempt = now;
+      loginAttempts.set(ip, attempts);
+      
+      return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+    }
+
+    // Use async bcrypt to prevent blocking the event loop
+    const passwordValid = await bcrypt.compare(password, user.password);
+    if (!passwordValid) {
       // Track failed login attempts
       const now = Date.now();
       const attempts = loginAttempts.get(ip) || { count: 0, lastAttempt: now };
@@ -377,59 +298,84 @@ app.post('/api/auth/login', rateLimitAuth, (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
-        must_change_password: user.must_change_password === 1
+        must_change_password: user.must_change_password
       }
     });
-  });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
 });
 
-app.post('/api/auth/register', rateLimitAuth, (req, res) => {
+app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
     return res.status(400).json({ error: 'Alle Felder sind erforderlich' });
   }
 
-  const hashedPassword = bcrypt.hashSync(password, 10);
+  // Enhanced password validation
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen lang sein' });
+  }
+
+  // Check for basic complexity
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  if (!(hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar)) {
+    return res.status(400).json({ 
+      error: 'Passwort muss mindestens einen Großbuchstaben, einen Kleinbuchstaben, eine Zahl und ein Sonderzeichen enthalten' 
+    });
+  }
+
   const userId = uuidv4();
 
-  db.run(
-    "INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)",
-    [userId, username, email, hashedPassword],
-    function(err) {
-      if (err) {
-        if (err.code === 'SQLITE_CONSTRAINT') {
-          return res.status(400).json({ error: 'Benutzername oder E-Mail bereits vorhanden' });
-        }
-        return res.status(500).json({ error: 'Registrierung fehlgeschlagen' });
+  try {
+    // Use async bcrypt to prevent blocking the event loop
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    await database.createUser({
+      id: userId,
+      username,
+      email,
+      password: hashedPassword,
+      role: 'user'
+    });
+
+    const token = jwt.sign(
+      { 
+        id: userId, 
+        username, 
+        role: 'user',
+        iat: Math.floor(Date.now() / 1000)
+      },
+      JWT_SECRET,
+      {
+        expiresIn: JWT_OPTIONS.expiresIn,
+        algorithm: JWT_OPTIONS.algorithm,
+        issuer: JWT_OPTIONS.issuer,
+        audience: JWT_OPTIONS.audience
       }
+    );
 
-      const token = jwt.sign(
-        { 
-          id: userId, 
-          username, 
-          role: 'user',
-          iat: Math.floor(Date.now() / 1000)
-        },
-        JWT_SECRET,
-        {
-          expiresIn: JWT_OPTIONS.expiresIn,
-          algorithm: JWT_OPTIONS.algorithm,
-          issuer: JWT_OPTIONS.issuer,
-          audience: JWT_OPTIONS.audience
-        }
-      );
-
-      res.status(201).json({
-        token,
-        user: { id: userId, username, email, role: 'user' }
-      });
+    res.status(201).json({
+      token,
+      user: { id: userId, username, email, role: 'user' }
+    });
+  } catch (error) {
+    if (error.code === '23505') { // PostgreSQL unique constraint violation
+      return res.status(400).json({ error: 'Benutzername oder E-Mail bereits vorhanden' });
     }
-  );
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registrierung fehlgeschlagen' });
+  }
 });
 
 // Books API with pagination and caching
-app.get('/api/books', authenticateToken, (req, res) => {
+app.get('/api/books', authenticateToken, async (req, res) => {
   // Validate pagination parameters
   let page = parseInt(req.query.page) || 1;
   let limit = parseInt(req.query.limit) || 50;
@@ -448,135 +394,99 @@ app.get('/api/books', authenticateToken, (req, res) => {
     return res.status(400).json({ error: 'Suchbegriff zu lang (max. 255 Zeichen)' });
   }
 
-  let query = `
-    SELECT b.*, u.username as uploader_name, c.name as category_name, c.color as category_color, c.icon as category_icon
-    FROM books b 
-    LEFT JOIN users u ON b.uploaded_by = u.id 
-    LEFT JOIN categories c ON b.category_id = c.id
-  `;
-  
-  let countQuery = 'SELECT COUNT(*) as total FROM books b';
-  let params = [];
-  let conditions = [];
-
-  if (search) {
-    conditions.push('(b.title LIKE ? OR b.author LIKE ?)');
-    params.push(`%${search}%`, `%${search}%`);
-  }
-
-  if (type && type !== 'all') {
-    conditions.push('b.type = ?');
-    params.push(type);
-  }
-
-  if (conditions.length > 0) {
-    const whereClause = ' WHERE ' + conditions.join(' AND ');
-    query += whereClause;
-    countQuery += whereClause;
-  }
-
-  query += ' ORDER BY b.upload_date DESC LIMIT ? OFFSET ?';
-  params.push(limit, offset);
-
-  // Get total count
-  db.get(countQuery, params.slice(0, -2), (err, countResult) => {
-    if (err) {
-      return res.status(500).json({ error: 'Fehler beim Zählen der Bücher' });
-    }
-
-    // Get books
-    db.all(query, params, (err, books) => {
-      if (err) {
-        return res.status(500).json({ error: 'Fehler beim Laden der Bücher' });
+  try {
+    const result = await database.getBooks({ search, type, limit, offset });
+    
+    res.json({
+      books: result.books,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        totalPages: Math.ceil(result.total / limit),
+        hasNext: page * limit < result.total,
+        hasPrev: page > 1
       }
-      
-      res.json({
-        books,
-        pagination: {
-          page,
-          limit,
-          total: countResult.total,
-          totalPages: Math.ceil(countResult.total / limit),
-          hasNext: page * limit < countResult.total,
-          hasPrev: page > 1
-        }
-      });
     });
-  });
+  } catch (error) {
+    console.error('Error fetching books:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Bücher' });
+  }
 });
 
 app.post('/api/books/upload', authenticateToken, upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'cover', maxCount: 1 }
-]), (req, res) => {
+]), async (req, res) => {
   if (!req.files || !req.files['file']) {
     return res.status(400).json({ error: 'Keine Datei hochgeladen' });
   }
   
   const bookFile = req.files['file'][0];
   const coverFile = req.files['cover'] ? req.files['cover'][0] : null;
+  
+  // Enhanced cleanup function to prevent race conditions
+  const cleanupFiles = () => {
+    try {
+      if (fs.existsSync(bookFile.path)) {
+        fs.removeSync(bookFile.path);
+      }
+      if (coverFile && fs.existsSync(coverFile.path)) {
+        fs.removeSync(coverFile.path);
+      }
+    } catch (cleanupError) {
+      console.error('File cleanup error:', cleanupError);
+    }
+  };
 
   const { title, author, description, type, category_id } = req.body;
   
-  // Input validation
-  if (!title || title.trim().length === 0) {
-    fs.removeSync(bookFile.path); // Clean up uploaded file
-    if (coverFile) fs.removeSync(coverFile.path);
-    return res.status(400).json({ error: 'Titel ist erforderlich' });
-  }
-  
-  if (title.length > 255) {
-    fs.removeSync(bookFile.path);
-    if (coverFile) fs.removeSync(coverFile.path);
-    return res.status(400).json({ error: 'Titel ist zu lang (max. 255 Zeichen)' });
-  }
-  
-  if (author && author.length > 255) {
-    fs.removeSync(bookFile.path);
-    if (coverFile) fs.removeSync(coverFile.path);
-    return res.status(400).json({ error: 'Autor ist zu lang (max. 255 Zeichen)' });
-  }
-  
-  if (description && description.length > 1000) {
-    fs.removeSync(bookFile.path);
-    if (coverFile) fs.removeSync(coverFile.path);
-    return res.status(400).json({ error: 'Beschreibung ist zu lang (max. 1000 Zeichen)' });
-  }
-  
-  if (type && !['book', 'magazine'].includes(type)) {
-    fs.removeSync(bookFile.path);
-    if (coverFile) fs.removeSync(coverFile.path);
-    return res.status(400).json({ error: 'Ungültiger Typ. Nur "book" oder "magazine" erlaubt' });
-  }
-
-  const bookId = uuidv4();
-
-  const bookData = {
-    id: bookId,
-    title: title.trim(), // We already validated it exists
-    author: author ? author.trim() : 'Unbekannt',
-    description: description ? description.trim() : '',
-    type: type || 'book',
-    category_id: category_id || null,
-    filename: bookFile.originalname,
-    filepath: bookFile.path,
-    file_size: bookFile.size,
-    cover_image: coverFile ? `/uploads/${coverFile.filename}` : null,
-    uploaded_by: req.user.id
-  };
-
-  db.run(`
-    INSERT INTO books (id, title, author, description, type, category_id, filename, filepath, file_size, cover_image, uploaded_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [bookData.id, bookData.title, bookData.author, bookData.description, bookData.type, bookData.category_id,
-      bookData.filename, bookData.filepath, bookData.file_size, bookData.cover_image, bookData.uploaded_by], 
-  function(err) {
-    if (err) {
-      fs.removeSync(bookFile.path); // Clean up files on error
-      if (coverFile) fs.removeSync(coverFile.path);
-      return res.status(500).json({ error: 'Fehler beim Speichern der Buchinformationen' });
+  // Input validation with improved error handling
+  try {
+    if (!title || title.trim().length === 0) {
+      cleanupFiles();
+      return res.status(400).json({ error: 'Titel ist erforderlich' });
+    }
+    
+    if (title.length > 255) {
+      cleanupFiles();
+      return res.status(400).json({ error: 'Titel ist zu lang (max. 255 Zeichen)' });
+    }
+    
+    if (author && author.length > 255) {
+      cleanupFiles();
+      return res.status(400).json({ error: 'Autor ist zu lang (max. 255 Zeichen)' });
+    }
+    
+    if (description && description.length > 1000) {
+      cleanupFiles();
+      return res.status(400).json({ error: 'Beschreibung ist zu lang (max. 1000 Zeichen)' });
+    }
+    
+    if (type && !['book', 'magazine'].includes(type)) {
+      cleanupFiles();
+      return res.status(400).json({ error: 'Ungültiger Typ. Nur "book" oder "magazine" erlaubt' });
     }
 
+    const bookId = uuidv4();
+
+    const bookData = {
+      id: bookId,
+      title: title.trim(),
+      author: author ? author.trim() : 'Unbekannt',
+      description: description ? description.trim() : '',
+      type: type || 'book',
+      category_id: category_id || null,
+      filename: bookFile.originalname,
+      filepath: bookFile.path,
+      file_size: bookFile.size,
+      cover_image: coverFile ? `/uploads/${coverFile.filename}` : null,
+      uploaded_by: req.user.id
+    };
+
+    // Use database transaction to ensure atomicity
+    await database.createBook(bookData);
+    
     res.status(201).json({ 
       message: 'Buch erfolgreich hochgeladen',
       book: {
@@ -590,16 +500,19 @@ app.post('/api/books/upload', authenticateToken, upload.fields([
         // Don't expose filepath for security
       }
     });
-  });
+  } catch (error) {
+    // Ensure cleanup happens on any error
+    cleanupFiles();
+    console.error('Error in book upload:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern der Buchinformationen' });
+  }
 });
 
-app.delete('/api/books/:id', authenticateToken, (req, res) => {
+app.delete('/api/books/:id', authenticateToken, async (req, res) => {
   const bookId = req.params.id;
 
-  db.get("SELECT * FROM books WHERE id = ?", [bookId], (err, book) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
+  try {
+    const book = await database.getBookById(bookId);
     
     if (!book) {
       return res.status(404).json({ error: 'Buch nicht gefunden' });
@@ -610,27 +523,24 @@ app.delete('/api/books/:id', authenticateToken, (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung zum Löschen' });
     }
 
-    db.run("DELETE FROM books WHERE id = ?", [bookId], (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Fehler beim Löschen' });
-      }
+    await database.deleteBook(bookId);
 
-      // Delete file
-      fs.remove(book.filepath).catch(console.error);
-      
-      res.json({ message: 'Buch erfolgreich gelöscht' });
-    });
-  });
+    // Delete file
+    fs.remove(book.filepath).catch(console.error);
+    
+    res.json({ message: 'Buch erfolgreich gelöscht' });
+  } catch (error) {
+    console.error('Error deleting book:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
 });
 
 // Download endpoint
-app.get('/api/books/:id/download', authenticateToken, (req, res) => {
+app.get('/api/books/:id/download', authenticateToken, async (req, res) => {
   const bookId = req.params.id;
 
-  db.get("SELECT * FROM books WHERE id = ?", [bookId], (err, book) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
+  try {
+    const book = await database.getBookById(bookId);
     
     if (!book) {
       return res.status(404).json({ error: 'Buch nicht gefunden' });
@@ -641,24 +551,23 @@ app.get('/api/books/:id/download', authenticateToken, (req, res) => {
     }
 
     // Increment download counter
-    db.run("UPDATE books SET download_count = download_count + 1 WHERE id = ?", [bookId], (err) => {
-      if (err) console.error('Error updating download count:', err);
-    });
+    await database.incrementDownloadCount(bookId);
 
     res.download(book.filepath, book.filename);
-  });
+  } catch (error) {
+    console.error('Error downloading book:', error);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
 });
 
 // Shareable Links API
-app.post('/api/books/:id/share', authenticateToken, (req, res) => {
+app.post('/api/books/:id/share', authenticateToken, async (req, res) => {
   const bookId = req.params.id;
   const { expiresIn } = req.body; // Optional: hours until expiration
 
-  // Check if book exists and user has access
-  db.get("SELECT * FROM books WHERE id = ?", [bookId], (err, book) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
+  try {
+    // Check if book exists and user has access
+    const book = await database.getBookById(bookId);
     
     if (!book) {
       return res.status(404).json({ error: 'Buch nicht gefunden' });
@@ -673,32 +582,32 @@ app.post('/api/books/:id/share', authenticateToken, (req, res) => {
     const shareToken = uuidv4().replace(/-/g, ''); // Clean token for URLs
     const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 60 * 60 * 1000) : null;
 
-    db.run(`
-      INSERT INTO share_links (id, book_id, share_token, created_by, expires_at)
-      VALUES (?, ?, ?, ?, ?)
-    `, [shareId, bookId, shareToken, req.user.id, expiresAt], function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Fehler beim Erstellen des Freigabe-Links' });
-      }
-
-      res.status(201).json({
-        shareToken,
-        shareUrl: `${req.protocol}://${req.get('host')}/share/${shareToken}`,
-        expiresAt,
-        message: 'Freigabe-Link erfolgreich erstellt'
-      });
+    await database.createShareLink({
+      id: shareId,
+      book_id: bookId,
+      share_token: shareToken,
+      created_by: req.user.id,
+      expires_at: expiresAt
     });
-  });
+
+    res.status(201).json({
+      shareToken,
+      shareUrl: `${req.protocol}://${req.get('host')}/share/${shareToken}`,
+      expiresAt,
+      message: 'Freigabe-Link erfolgreich erstellt'
+    });
+  } catch (error) {
+    console.error('Error creating share link:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Freigabe-Links' });
+  }
 });
 
-app.get('/api/books/:id/shares', authenticateToken, (req, res) => {
+app.get('/api/books/:id/shares', authenticateToken, async (req, res) => {
   const bookId = req.params.id;
 
-  // Check if user can view shares for this book
-  db.get("SELECT * FROM books WHERE id = ?", [bookId], (err, book) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
+  try {
+    // Check if user can view shares for this book
+    const book = await database.getBookById(bookId);
     
     if (!book) {
       return res.status(404).json({ error: 'Buch nicht gefunden' });
@@ -708,37 +617,23 @@ app.get('/api/books/:id/shares', authenticateToken, (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung' });
     }
 
-    db.all(`
-      SELECT sl.*, u.username as created_by_name 
-      FROM share_links sl 
-      LEFT JOIN users u ON sl.created_by = u.id 
-      WHERE sl.book_id = ? AND sl.is_active = 1
-      ORDER BY sl.created_at DESC
-    `, [bookId], (err, shares) => {
-      if (err) {
-        return res.status(500).json({ error: 'Fehler beim Laden der Freigaben' });
-      }
-      
-      res.json(shares.map(share => ({
-        ...share,
-        shareUrl: `${req.protocol}://${req.get('host')}/share/${share.share_token}`
-      })));
-    });
-  });
+    const shares = await database.getShareLinksForBook(bookId);
+    
+    res.json(shares.map(share => ({
+      ...share,
+      shareUrl: `${req.protocol}://${req.get('host')}/share/${share.share_token}`
+    })));
+  } catch (error) {
+    console.error('Error fetching share links:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Freigaben' });
+  }
 });
 
-app.delete('/api/shares/:token', authenticateToken, (req, res) => {
+app.delete('/api/shares/:token', authenticateToken, async (req, res) => {
   const shareToken = req.params.token;
 
-  db.get(`
-    SELECT sl.*, b.uploaded_by 
-    FROM share_links sl 
-    JOIN books b ON sl.book_id = b.id 
-    WHERE sl.share_token = ?
-  `, [shareToken], (err, share) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
+  try {
+    const share = await database.getShareLinkWithBook(shareToken);
     
     if (!share) {
       return res.status(404).json({ error: 'Freigabe-Link nicht gefunden' });
@@ -749,30 +644,21 @@ app.delete('/api/shares/:token', authenticateToken, (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung zum Löschen' });
     }
 
-    db.run("UPDATE share_links SET is_active = 0 WHERE share_token = ?", [shareToken], (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Fehler beim Deaktivieren der Freigabe' });
-      }
-      
-      res.json({ message: 'Freigabe-Link erfolgreich deaktiviert' });
-    });
-  });
+    await database.deactivateShareLink(shareToken);
+    
+    res.json({ message: 'Freigabe-Link erfolgreich deaktiviert' });
+  } catch (error) {
+    console.error('Error deactivating share link:', error);
+    res.status(500).json({ error: 'Fehler beim Deaktivieren der Freigabe' });
+  }
 });
 
 // Public shared book access (no authentication required)
-app.get('/api/share/:token', (req, res) => {
+app.get('/api/share/:token', async (req, res) => {
   const shareToken = req.params.token;
 
-  db.get(`
-    SELECT sl.*, b.*, u.username as uploader_name
-    FROM share_links sl
-    JOIN books b ON sl.book_id = b.id
-    LEFT JOIN users u ON b.uploaded_by = u.id
-    WHERE sl.share_token = ? AND sl.is_active = 1
-  `, [shareToken], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
+  try {
+    const result = await database.getBookByShareToken(shareToken);
 
     if (!result) {
       return res.status(404).json({ error: 'Freigabe-Link nicht gefunden oder inaktiv' });
@@ -784,7 +670,7 @@ app.get('/api/share/:token', (req, res) => {
     }
 
     // Increment access count
-    db.run("UPDATE share_links SET access_count = access_count + 1 WHERE share_token = ?", [shareToken]);
+    await database.incrementShareAccessCount(shareToken);
 
     // Return book info (no sensitive data)
     res.json({
@@ -802,22 +688,18 @@ app.get('/api/share/:token', (req, res) => {
       shareToken: shareToken,
       accessCount: result.access_count + 1
     });
-  });
+  } catch (error) {
+    console.error('Error accessing shared book:', error);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
 });
 
 // Public shared book download (no authentication required)
-app.get('/api/share/:token/download', (req, res) => {
+app.get('/api/share/:token/download', async (req, res) => {
   const shareToken = req.params.token;
 
-  db.get(`
-    SELECT sl.*, b.*
-    FROM share_links sl
-    JOIN books b ON sl.book_id = b.id
-    WHERE sl.share_token = ? AND sl.is_active = 1
-  `, [shareToken], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
+  try {
+    const result = await database.getBookByShareToken(shareToken);
 
     if (!result) {
       return res.status(404).json({ error: 'Freigabe-Link nicht gefunden oder inaktiv' });
@@ -833,77 +715,60 @@ app.get('/api/share/:token/download', (req, res) => {
     }
 
     // Increment both access count and download count
-    db.run("UPDATE share_links SET access_count = access_count + 1 WHERE share_token = ?", [shareToken]);
-    db.run("UPDATE books SET download_count = download_count + 1 WHERE id = ?", [result.book_id]);
+    await database.incrementShareAccessCount(shareToken);
+    await database.incrementDownloadCount(result.book_id);
 
     res.download(result.filepath, result.filename);
-  });
+  } catch (error) {
+    console.error('Error downloading shared book:', error);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
 });
 
 // User Management (Admin only)
-app.get('/api/users', authenticateToken, (req, res) => {
+app.get('/api/users', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
   }
 
-  db.all("SELECT id, username, email, role, is_active, must_change_password, last_password_change, created_at FROM users", (err, users) => {
-    if (err) {
-      return res.status(500).json({ error: 'Fehler beim Laden der Benutzer' });
-    }
+  try {
+    const users = await database.getAllUsers();
     res.json(users);
-  });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Benutzer' });
+  }
 });
 
 // Update user (Admin only)
-app.put('/api/users/:id', authenticateToken, (req, res) => {
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
   }
 
   const { id } = req.params;
-  const { role, is_active, must_change_password } = req.body;
+  const updates = req.body;
 
-  const updates = [];
-  const values = [];
-
-  if (role !== undefined) {
-    updates.push('role = ?');
-    values.push(role);
-  }
-
-  if (is_active !== undefined) {
-    updates.push('is_active = ?');
-    values.push(is_active ? 1 : 0);
-  }
-
-  if (must_change_password !== undefined) {
-    updates.push('must_change_password = ?');
-    values.push(must_change_password ? 1 : 0);
-  }
-
-  if (updates.length === 0) {
+  if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'Keine Änderungen angegeben' });
   }
 
-  values.push(id);
-
-  db.run(
-    `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-    values,
-    function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Fehler beim Aktualisieren des Benutzers' });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Benutzer nicht gefunden' });
-      }
-      res.json({ message: 'Benutzer erfolgreich aktualisiert' });
+  try {
+    const success = await database.updateUser(id, updates);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
-  );
+    
+    res.json({ message: 'Benutzer erfolgreich aktualisiert' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren des Benutzers' });
+  }
 });
 
 // Delete user (Admin only)
-app.delete('/api/users/:id', authenticateToken, (req, res) => {
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
   }
@@ -915,19 +780,22 @@ app.delete('/api/users/:id', authenticateToken, (req, res) => {
     return res.status(400).json({ error: 'Sie können sich nicht selbst löschen' });
   }
 
-  db.run("DELETE FROM users WHERE id = ?", [id], function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Fehler beim Löschen des Benutzers' });
-    }
-    if (this.changes === 0) {
+  try {
+    const success = await database.deleteUser(id);
+    
+    if (!success) {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
+    
     res.json({ message: 'Benutzer erfolgreich gelöscht' });
-  });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen des Benutzers' });
+  }
 });
 
 // Password change endpoint
-app.post('/api/auth/change-password', authenticateToken, (req, res) => {
+app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const userId = req.user.id;
 
@@ -935,46 +803,60 @@ app.post('/api/auth/change-password', authenticateToken, (req, res) => {
     return res.status(400).json({ error: 'Aktuelles und neues Passwort sind erforderlich' });
   }
 
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Das neue Passwort muss mindestens 6 Zeichen lang sein' });
+  // Enhanced password validation for password change
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Das neue Passwort muss mindestens 8 Zeichen lang sein' });
   }
 
-  db.get("SELECT * FROM users WHERE id = ?", [userId], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Datenbankfehler' });
+  // Check for basic complexity
+  const hasUpperCase = /[A-Z]/.test(newPassword);
+  const hasLowerCase = /[a-z]/.test(newPassword);
+  const hasNumbers = /\d/.test(newPassword);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+
+  if (!(hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar)) {
+    return res.status(400).json({ 
+      error: 'Neues Passwort muss mindestens einen Großbuchstaben, einen Kleinbuchstaben, eine Zahl und ein Sonderzeichen enthalten' 
+    });
+  }
+
+  try {
+    const user = await database.getUserById(userId);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Benutzer nicht gefunden' });
     }
 
-    if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
+    // Use async bcrypt to prevent blocking the event loop
+    const passwordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordValid) {
       return res.status(401).json({ error: 'Aktuelles Passwort ist falsch' });
     }
 
-    const hashedPassword = bcrypt.hashSync(newPassword, 10);
-    const now = new Date().toISOString();
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const now = new Date();
 
-    db.run(
-      "UPDATE users SET password = ?, must_change_password = 0, last_password_change = ? WHERE id = ?",
-      [hashedPassword, now, userId],
-      function(err) {
-        if (err) {
-          return res.status(500).json({ error: 'Fehler beim Ändern des Passworts' });
-        }
-        res.json({ message: 'Passwort erfolgreich geändert' });
-      }
-    );
-  });
+    await database.updateUserPassword(userId, hashedPassword, now);
+    
+    res.json({ message: 'Passwort erfolgreich geändert' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Fehler beim Ändern des Passworts' });
+  }
 });
 
 // Category Management
-app.get('/api/categories', authenticateToken, (req, res) => {
-  db.all("SELECT * FROM categories ORDER BY name", (err, categories) => {
-    if (err) {
-      return res.status(500).json({ error: 'Fehler beim Laden der Kategorien' });
-    }
+app.get('/api/categories', authenticateToken, async (req, res) => {
+  try {
+    const categories = await database.getAllCategories();
     res.json(categories);
-  });
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Kategorien' });
+  }
 });
 
-app.post('/api/categories', authenticateToken, (req, res) => {
+app.post('/api/categories', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
   }
@@ -987,108 +869,422 @@ app.post('/api/categories', authenticateToken, (req, res) => {
 
   const categoryId = uuidv4();
 
-  db.run(
-    "INSERT INTO categories (id, name, description, color, icon) VALUES (?, ?, ?, ?, ?)",
-    [categoryId, name, description || '', color || '#1976d2', icon || 'folder'],
-    function(err) {
-      if (err) {
-        if (err.code === 'SQLITE_CONSTRAINT') {
-          return res.status(400).json({ error: 'Kategorie existiert bereits' });
-        }
-        return res.status(500).json({ error: 'Fehler beim Erstellen der Kategorie' });
-      }
-      res.status(201).json({ 
-        id: categoryId, 
-        name, 
-        description, 
-        color: color || '#1976d2', 
-        icon: icon || 'folder' 
-      });
+  try {
+    await database.createCategory({
+      id: categoryId,
+      name,
+      description: description || '',
+      color: color || '#1976d2',
+      icon: icon || 'folder'
+    });
+    
+    res.status(201).json({ 
+      id: categoryId, 
+      name, 
+      description, 
+      color: color || '#1976d2', 
+      icon: icon || 'folder' 
+    });
+  } catch (error) {
+    if (error.code === '23505') { // PostgreSQL unique constraint violation
+      return res.status(400).json({ error: 'Kategorie existiert bereits' });
     }
-  );
+    console.error('Error creating category:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen der Kategorie' });
+  }
 });
 
-app.put('/api/categories/:id', authenticateToken, (req, res) => {
+app.put('/api/categories/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
   }
 
   const { id } = req.params;
-  const { name, description, color, icon } = req.body;
+  const updates = req.body;
 
-  const updates = [];
-  const values = [];
-
-  if (name !== undefined) {
-    updates.push('name = ?');
-    values.push(name);
-  }
-
-  if (description !== undefined) {
-    updates.push('description = ?');
-    values.push(description);
-  }
-
-  if (color !== undefined) {
-    updates.push('color = ?');
-    values.push(color);
-  }
-
-  if (icon !== undefined) {
-    updates.push('icon = ?');
-    values.push(icon);
-  }
-
-  if (updates.length === 0) {
+  if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'Keine Änderungen angegeben' });
   }
 
-  values.push(id);
-
-  db.run(
-    `UPDATE categories SET ${updates.join(', ')} WHERE id = ?`,
-    values,
-    function(err) {
-      if (err) {
-        if (err.code === 'SQLITE_CONSTRAINT') {
-          return res.status(400).json({ error: 'Kategoriename existiert bereits' });
-        }
-        return res.status(500).json({ error: 'Fehler beim Aktualisieren der Kategorie' });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Kategorie nicht gefunden' });
-      }
-      res.json({ message: 'Kategorie erfolgreich aktualisiert' });
+  try {
+    const success = await database.updateCategory(id, updates);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Kategorie nicht gefunden' });
     }
-  );
+    
+    res.json({ message: 'Kategorie erfolgreich aktualisiert' });
+  } catch (error) {
+    if (error.code === '23505') { // PostgreSQL unique constraint violation
+      return res.status(400).json({ error: 'Kategoriename existiert bereits' });
+    }
+    console.error('Error updating category:', error);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren der Kategorie' });
+  }
 });
 
-app.delete('/api/categories/:id', authenticateToken, (req, res) => {
+app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
   }
 
   const { id } = req.params;
 
-  db.run("DELETE FROM categories WHERE id = ?", [id], function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Fehler beim Löschen der Kategorie' });
-    }
-    if (this.changes === 0) {
+  try {
+    const success = await database.deleteCategory(id);
+    
+    if (!success) {
       return res.status(404).json({ error: 'Kategorie nicht gefunden' });
     }
+    
     res.json({ message: 'Kategorie erfolgreich gelöscht' });
-  });
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen der Kategorie' });
+  }
+});
+
+// Translation API - Get categories with translations
+app.get('/api/categories/translated', authenticateToken, async (req, res) => {
+  try {
+    const language = req.query.lang || 'en';
+    const categories = await database.getCategoriesWithTranslations(language);
+    res.json(categories);
+  } catch (error) {
+    console.error('Error getting translated categories:', error);
+    res.status(500).json({ error: 'Error loading translated categories' });
+  }
+});
+
+// Translation API - Get translation
+app.get('/api/translations/:key', authenticateToken, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { lang = 'en', context = 'ui' } = req.query;
+    
+    const translation = await database.getTranslation(key, lang, context);
+    
+    if (!translation) {
+      return res.status(404).json({ error: 'Translation not found' });
+    }
+    
+    res.json({ key, language: lang, value: translation, context });
+  } catch (error) {
+    console.error('Error getting translation:', error);
+    res.status(500).json({ error: 'Error loading translation' });
+  }
+});
+
+// Translation API - Set/update translation (Admin only)
+app.post('/api/translations', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  try {
+    const { key, language, value, context = 'ui' } = req.body;
+    
+    if (!key || !language || !value) {
+      return res.status(400).json({ error: 'Key, language and value are required' });
+    }
+    
+    const success = await database.setTranslation(key, language, value, context);
+    
+    if (success) {
+      res.json({ message: 'Translation saved successfully', key, language, value, context });
+    } else {
+      res.status(500).json({ error: 'Failed to save translation' });
+    }
+  } catch (error) {
+    console.error('Error setting translation:', error);
+    res.status(500).json({ error: 'Error saving translation' });
+  }
+});
+
+// Translation API - Get all translations for language (Admin only)
+app.get('/api/translations', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  try {
+    const { lang = 'en', context } = req.query;
+    
+    let query = 'SELECT * FROM translations WHERE language = $1';
+    let params = [lang];
+    
+    if (context) {
+      query += ' AND context = $2';
+      params.push(context);
+    }
+    
+    query += ' ORDER BY translation_key';
+    
+    const result = await database.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error getting translations:', error);
+    res.status(500).json({ error: 'Error loading translations' });
+  }
+});
+
+// Export books (Admin only)
+app.get('/api/export/books', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  try {
+    const books = await database.getAllBooksForExport();
+    
+    res.json(books);
+  } catch (error) {
+    console.error('Error exporting books:', error);
+    res.status(500).json({ error: 'Fehler beim Exportieren der Bücher' });
+  }
+});
+
+// Download books archive (Admin only)
+app.get('/api/download/archive', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  try {
+    const books = await database.getAllBooksForExport();
+    
+    // Create a write stream for the zip file
+    const zipPath = path.join(__dirname, './uploads', `books-archive-${Date.now()}.zip`);
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver('zip', {
+      zlib: { level: 9 }
+    });
+
+    output.on('close', function() {
+      res.download(zipPath, 'books-archive.zip', (err) => {
+        if (err) {
+          console.error('Error sending archive:', err);
+        }
+        // Clean up the zip file after download
+        fs.remove(zipPath).catch(console.error);
+      });
+    });
+
+    archive.on('error', function(err) {
+      throw err;
+    });
+
+    archive.pipe(output);
+
+    // Add books to archive
+    for (const book of books) {
+      if (fs.existsSync(book.filepath)) {
+        archive.file(book.filepath, { name: `books/${book.filename}` });
+      }
+    }
+
+    // Add metadata as JSON
+    archive.append(JSON.stringify(books, null, 2), { name: 'metadata.json' });
+
+    archive.finalize();
+  } catch (error) {
+    console.error('Error creating archive:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Archivs' });
+  }
+});
+
+// Export to CSV (Admin only)
+app.get('/api/export/csv', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  try {
+    const books = await database.getAllBooksForExport();
+    
+    const csvPath = path.join(__dirname, './uploads', `books-export-${Date.now()}.csv`);
+    
+    const csvWriter = createCsvWriter({
+      path: csvPath,
+      header: [
+        { id: 'title', title: 'Titel' },
+        { id: 'author', title: 'Autor' },
+        { id: 'description', title: 'Beschreibung' },
+        { id: 'type', title: 'Typ' },
+        { id: 'category_name', title: 'Kategorie' },
+        { id: 'filename', title: 'Dateiname' },
+        { id: 'file_size', title: 'Dateigröße' },
+        { id: 'download_count', title: 'Downloads' },
+        { id: 'upload_date', title: 'Upload-Datum' },
+        { id: 'uploader_name', title: 'Hochgeladen von' }
+      ]
+    });
+
+    await csvWriter.writeRecords(books);
+    
+    res.download(csvPath, 'books-export.csv', (err) => {
+      if (err) {
+        console.error('Error sending CSV:', err);
+      }
+      // Clean up the CSV file after download
+      fs.remove(csvPath).catch(console.error);
+    });
+  } catch (error) {
+    console.error('Error creating CSV:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen der CSV-Datei' });
+  }
+});
+
+// Backup Management (Admin only)
+app.get('/api/backup/list', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  try {
+    const backupDir = path.join(__dirname, './backups');
+    
+    // Create backup directory if it doesn't exist
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    const files = fs.readdirSync(backupDir)
+      .filter(file => file.endsWith('.zip'))
+      .map(file => {
+        const stats = fs.statSync(path.join(backupDir, file));
+        return {
+          filename: file,
+          size: stats.size,
+          created_at: stats.birthtime
+        };
+      })
+      .sort((a, b) => b.created_at - a.created_at);
+
+    res.json({ backups: files });
+  } catch (error) {
+    console.error('Error listing backups:', error);
+    res.status(500).json({ error: 'Fehler beim Abrufen der Backups' });
+  }
+});
+
+app.post('/api/backup/create', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  try {
+    const backupDir = path.join(__dirname, './backups');
+    fs.ensureDirSync(backupDir);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFile = path.join(backupDir, `backup-${timestamp}.zip`);
+
+    // Get all books from database
+    const books = await database.getAllBooksForExport();
+    
+    // Create archive
+    const output = fs.createWriteStream(backupFile);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    archive.on('error', (err) => {
+      throw err;
+    });
+
+    archive.pipe(output);
+
+    // Add database export as JSON
+    archive.append(JSON.stringify({
+      version: '2.0',
+      created_at: new Date().toISOString(),
+      books: books,
+      total_books: books.length
+    }, null, 2), { name: 'database.json' });
+
+    // Add book files
+    for (const book of books) {
+      if (fs.existsSync(book.filepath)) {
+        archive.file(book.filepath, { name: `books/${book.filename}` });
+      }
+    }
+
+    await archive.finalize();
+
+    res.json({ 
+      message: 'Backup erfolgreich erstellt',
+      filename: `backup-${timestamp}.zip`,
+      books_count: books.length 
+    });
+  } catch (error) {
+    console.error('Error creating backup:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Backups' });
+  }
+});
+
+app.delete('/api/backup/:filename', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  const { filename } = req.params;
+  
+  // Security: Prevent directory traversal
+  if (filename.includes('..') || filename.includes('/')) {
+    return res.status(400).json({ error: 'Ungültiger Dateiname' });
+  }
+
+  try {
+    const backupPath = path.join(__dirname, './backups', filename);
+    
+    if (!fs.existsSync(backupPath)) {
+      return res.status(404).json({ error: 'Backup nicht gefunden' });
+    }
+
+    fs.removeSync(backupPath);
+    res.json({ message: 'Backup erfolgreich gelöscht' });
+  } catch (error) {
+    console.error('Error deleting backup:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen des Backups' });
+  }
+});
+
+// Generate QR Code for book
+app.get('/api/books/:id/qr', authenticateToken, async (req, res) => {
+  const bookId = req.params.id;
+
+  try {
+    const book = await database.getBookById(bookId);
+    
+    if (!book) {
+      return res.status(404).json({ error: 'Buch nicht gefunden' });
+    }
+
+    const downloadUrl = `${req.protocol}://${req.get('host')}/api/books/${bookId}/download`;
+    
+    const qrCode = await QRCode.toDataURL(downloadUrl, {
+      width: 300,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+
+    res.json({ qrCode, downloadUrl });
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    res.status(500).json({ error: 'Fehler beim Generieren des QR-Codes' });
+  }
 });
 
 // Serve React App with Share Route
 app.get('/share/:token', (req, res) => {
-  res.sendFile(path.join(__dirname, './frontend/build/share.html'));
+  res.sendFile(path.join(__dirname, './frontend/build/index.html'));
 });
 
 // Serve main application
 app.get('/app', (req, res) => {
-  res.sendFile(path.join(__dirname, './frontend/build/app.html'));
+  res.sendFile(path.join(__dirname, './frontend/build/index.html'));
 });
 
 // Redirect root to app
@@ -1102,7 +1298,7 @@ app.get('/status', (req, res) => {
 });
 
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, './frontend/build/app.html'));
+  res.sendFile(path.join(__dirname, './frontend/build/index.html'));
 });
 
 // Error handling middleware
@@ -1119,4 +1315,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Book Manager Server läuft auf Port ${PORT}`);
   console.log(`📚 Zugriff über: http://localhost:${PORT}`);
   console.log(`👤 Standard Admin: admin / admin123`);
+  console.log(`🗄️  Datenbank: PostgreSQL`);
 });
