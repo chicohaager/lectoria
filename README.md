@@ -2,18 +2,25 @@
 
 > **Created by [@chicohaager](https://github.com/chicohaager/lectoria)**
 
-A modern, full-stack digital library management system built with React and Node.js. Upload, organize, and share your PDF and EPUB files with secure authentication and shareable links.
+A modern, full-stack digital library management system built with React and Node.js. Upload, organize, and share your PDF and EPUB files with secure authentication, shareable links, and **comprehensive multilingual support**.
 
 ![Lectoria Logo](logo.png)
 
 ## 🚀 Features
 
 ### 📖 Core Functionality
-- **Modern Web Interface** - React 18 with Material-UI components
-- **File Upload & Management** - Drag-and-drop PDF/EPUB upload (up to 50MB)
+- **Modern Web Interface** - React 18 with Material-UI components and PWA support
+- **File Upload & Management** - Drag-and-drop PDF/EPUB upload (up to 70MB)
 - **Smart Search & Filtering** - Find books by title, author, or type
 - **Role-Based Access** - Admin and user roles with proper permissions
 - **Secure Authentication** - JWT-based with bcrypt password hashing
+
+### 🌍 Multilingual Support (NEW!)
+- **Database-Driven Translations** - Scalable language system
+- **Currently Supports** - English & German with automatic switching
+- **Admin Translation Management** - Add new languages via REST API
+- **Dynamic Content Translation** - Categories and UI adapt to user language
+- **Automatic Migration** - Existing content automatically translated
 
 ### 🔗 Shareable Links
 - **Public Sharing** - Create shareable links for any book (no login required)
