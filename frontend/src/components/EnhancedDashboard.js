@@ -342,10 +342,8 @@ function EnhancedDashboard() {
         category_id: filterCategory !== 'all' ? filterCategory : undefined
       };
 
-      const response = await api.post('/api/export/csv', filters);
-      
-      // Download the CSV file with proper authentication
-      const downloadResponse = await api.get(`/api/export/csv/${response.data.export.filename}`, {
+      // Download the CSV file directly with proper authentication
+      const response = await api.get('/api/export/csv', {
         responseType: 'blob',
         headers: {
           'Accept': 'text/csv'
@@ -353,11 +351,11 @@ function EnhancedDashboard() {
       });
       
       // Create blob URL and trigger download
-      const blob = new Blob([downloadResponse.data], { type: 'text/csv' });
+      const blob = new Blob([response.data], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = response.data.export.filename;
+      link.download = `books-export-${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -43,7 +43,7 @@ A modern, full-stack digital library management system built with React and Node
 ## 🛠 Technology Stack
 
 - **Frontend**: React 18, Material-UI 5, React Router 6
-- **Backend**: Node.js, Express.js, SQLite3
+- **Backend**: Node.js, Express.js, PostgreSQL
 - **Authentication**: JWT (JSON Web Tokens)
 - **File Handling**: Multer with type validation
 - **Containerization**: Docker & Docker Compose
@@ -115,7 +115,7 @@ lectoria/
 │       ├── components/      # React components
 │       └── services/        # API services
 ├── uploads/                   # File storage
-└── data/                     # SQLite database
+└── data/                     # Database configuration
 ```
 
 ## 🗄 Database Schema
