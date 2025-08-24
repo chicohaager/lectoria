@@ -5,6 +5,39 @@ All notable changes to Lectoria BookManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-08-24
+
+### 🌍 Added - Database-Driven Multilingual System
+- **Scalable Translation Architecture**: Database tables for translations & category translations
+- **Automatic Content Migration**: Existing 12 German categories migrated to DE/EN
+- **Dynamic Language Switching**: Categories adapt automatically to user language preference
+- **Admin Translation Management**: REST APIs for adding/editing translations
+- **Complete Interface Translation**: All German admin text replaced with translation keys
+
+### 🔧 Added - Translation APIs
+- `GET /api/categories/translated?lang=en` - Categories with translations
+- `GET /api/translations/:key` - Individual translation retrieval  
+- `POST /api/translations` - Create/update translations (admin only)
+- `GET /api/translations` - List all translations for language (admin only)
+
+### 📊 Enhanced - Database Architecture  
+- **New Tables**: `translations`, `category_translations` with UUID foreign keys
+- **Migration System**: Automatic translation migration with fallback support
+- **Query Optimization**: Efficient JOIN queries for translated content
+- **Data Integrity**: Proper foreign key constraints and cascading deletes
+
+### 🎯 Enhanced - User Experience
+- **Real-time Language Switch**: UI updates immediately when language changes
+- **Fallback System**: Graceful degradation when translations are missing
+- **Category Localization**: Names and descriptions adapt to user language
+- **Future-Ready**: Easy addition of new languages without code changes
+
+### 🔒 Technical Improvements
+- **PostgreSQL Optimization**: Enhanced query performance for translations
+- **API Security**: Translation management restricted to admin users
+- **Error Handling**: Comprehensive error handling for translation failures
+- **Memory Efficiency**: Optimized translation loading and caching
+
 ## [2.0.0] - 2024-08-22
 
 ### 🎨 Added - Book Cover Images
