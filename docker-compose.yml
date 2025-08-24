@@ -1,34 +1,76 @@
 version: '3.8'
 
 services:
-  lectoria:
-    build: .
-    container_name: lectoria-app
-    ports:
-      - "3000:3000"
+  postgres:
+    image: postgres:16
+    container_name: lectoria_postgres
     environment:
-      - NODE_ENV=production
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-me}
-      - PORT=3000
+      POSTGRES_DB: lectoria
+      POSTGRES_USER: lectoria_user
+      POSTGRES_PASSWORD: lectoria_secure_2024
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - lectoria-data:/app/data
-      - lectoria-uploads:/app/uploads
-    restart: unless-stopped
+      - postgres_data:/var/lib/postgresql/data/pgdata
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test: ["CMD-SHELL", "pg_isready -U lectoria_user -d lectoria"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+    restart: unless-stopped
     networks:
-      - lectoria-network
+      - lectoria_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lectoria_backend
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://lectoria_user:lectoria_secure_2024@postgres:5432/lectoria
+      JWT_SECRET: ${JWT_SECRET:-lectoria_jwt_secret_change_in_production_2024}
+      PORT: 3000
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lectoria_network
+
+  # Optional: pgAdmin for database management (dev profile)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: lectoria_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@lectoria.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - lectoria_network
+    profiles:
+      - dev
 
 volumes:
-  lectoria-data:
+  postgres_data:
     driver: local
-  lectoria-uploads:
+  pgadmin_data:
     driver: local
 
 networks:
-  lectoria-network:
+  lectoria_network:
     driver: bridge

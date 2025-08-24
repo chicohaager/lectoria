@@ -87,23 +87,27 @@ const db = new sqlite3.Database(dbPath);
 
 // Initialize Database
 db.serialize(() => {
-  // Users table
+  // Users table with password change tracking
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     role TEXT DEFAULT 'user',
+    must_change_password BOOLEAN DEFAULT 0,
+    last_password_change DATETIME,
+    is_active BOOLEAN DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Books table
+  // Books table with category support
   db.run(`CREATE TABLE IF NOT EXISTS books (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     author TEXT,
     description TEXT,
     type TEXT NOT NULL,
+    category_id TEXT,
     filename TEXT NOT NULL,
     filepath TEXT NOT NULL,
     file_size INTEGER,
@@ -111,7 +115,18 @@ db.serialize(() => {
     download_count INTEGER DEFAULT 0,
     upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     uploaded_by TEXT,
-    FOREIGN KEY (uploaded_by) REFERENCES users (id)
+    FOREIGN KEY (uploaded_by) REFERENCES users (id),
+    FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET NULL
+  )`);
+
+  // Categories table
+  db.run(`CREATE TABLE IF NOT EXISTS categories (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    color TEXT DEFAULT '#1976d2',
+    icon TEXT DEFAULT 'folder',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
   // Shareable links table
@@ -153,13 +168,14 @@ db.serialize(() => {
     }
   });
 
-  // Create default admin user
+  // Create default admin user with password change requirement
   const defaultAdmin = {
     id: uuidv4(),
     username: 'admin',
     email: 'admin@bookmanager.com',
     password: bcrypt.hashSync('admin123', 10),
-    role: 'admin'
+    role: 'admin',
+    must_change_password: 1
   };
 
   db.get("SELECT * FROM users WHERE username = ?", ['admin'], (err, row) => {
@@ -170,16 +186,42 @@ db.serialize(() => {
     
     if (!row) {
       db.run(
-        "INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, ?)",
-        [defaultAdmin.id, defaultAdmin.username, defaultAdmin.email, defaultAdmin.password, defaultAdmin.role],
+        "INSERT INTO users (id, username, email, password, role, must_change_password) VALUES (?, ?, ?, ?, ?, ?)",
+        [defaultAdmin.id, defaultAdmin.username, defaultAdmin.email, defaultAdmin.password, defaultAdmin.role, defaultAdmin.must_change_password],
         function(err) {
           if (err) {
             console.error('Error creating default admin user:', err);
           } else {
-            console.log('✅ Default admin user created successfully');
+            console.log('✅ Default admin user created successfully (password change required on first login)');
           }
         }
       );
+    }
+  });
+
+  // Create default categories
+  const defaultCategories = [
+    { id: uuidv4(), name: 'Romane', description: 'Belletristik und Unterhaltung', color: '#e91e63', icon: 'auto_stories' },
+    { id: uuidv4(), name: 'Sachbücher', description: 'Fach- und Sachbücher', color: '#2196f3', icon: 'school' },
+    { id: uuidv4(), name: 'Zeitschriften', description: 'Magazine und Periodika', color: '#4caf50', icon: 'article' },
+    { id: uuidv4(), name: 'Wissenschaft', description: 'Wissenschaftliche Publikationen', color: '#9c27b0', icon: 'science' },
+    { id: uuidv4(), name: 'Technik', description: 'Technische Literatur', color: '#ff9800', icon: 'engineering' },
+    { id: uuidv4(), name: 'Kochbücher', description: 'Rezepte und Kulinarisches', color: '#795548', icon: 'restaurant' }
+  ];
+
+  db.get("SELECT COUNT(*) as count FROM categories", [], (err, row) => {
+    if (!err && row && row.count === 0) {
+      defaultCategories.forEach(category => {
+        db.run(
+          "INSERT INTO categories (id, name, description, color, icon) VALUES (?, ?, ?, ?, ?)",
+          [category.id, category.name, category.description, category.color, category.icon],
+          function(err) {
+            if (!err) {
+              console.log(`✅ Created category: ${category.name}`);
+            }
+          }
+        );
+      });
     }
   });
 });
@@ -334,7 +376,8 @@ app.post('/api/auth/login', rateLimitAuth, (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        must_change_password: user.must_change_password === 1
       }
     });
   });
@@ -406,9 +449,10 @@ app.get('/api/books', authenticateToken, (req, res) => {
   }
 
   let query = `
-    SELECT b.*, u.username as uploader_name 
+    SELECT b.*, u.username as uploader_name, c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM books b 
     LEFT JOIN users u ON b.uploaded_by = u.id 
+    LEFT JOIN categories c ON b.category_id = c.id
   `;
   
   let countQuery = 'SELECT COUNT(*) as total FROM books b';
@@ -472,7 +516,7 @@ app.post('/api/books/upload', authenticateToken, upload.fields([
   const bookFile = req.files['file'][0];
   const coverFile = req.files['cover'] ? req.files['cover'][0] : null;
 
-  const { title, author, description, type } = req.body;
+  const { title, author, description, type, category_id } = req.body;
   
   // Input validation
   if (!title || title.trim().length === 0) {
@@ -513,6 +557,7 @@ app.post('/api/books/upload', authenticateToken, upload.fields([
     author: author ? author.trim() : 'Unbekannt',
     description: description ? description.trim() : '',
     type: type || 'book',
+    category_id: category_id || null,
     filename: bookFile.originalname,
     filepath: bookFile.path,
     file_size: bookFile.size,
@@ -521,9 +566,9 @@ app.post('/api/books/upload', authenticateToken, upload.fields([
   };
 
   db.run(`
-    INSERT INTO books (id, title, author, description, type, filename, filepath, file_size, cover_image, uploaded_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [bookData.id, bookData.title, bookData.author, bookData.description, bookData.type, 
+    INSERT INTO books (id, title, author, description, type, category_id, filename, filepath, file_size, cover_image, uploaded_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [bookData.id, bookData.title, bookData.author, bookData.description, bookData.type, bookData.category_id,
       bookData.filename, bookData.filepath, bookData.file_size, bookData.cover_image, bookData.uploaded_by], 
   function(err) {
     if (err) {
@@ -801,11 +846,238 @@ app.get('/api/users', authenticateToken, (req, res) => {
     return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
   }
 
-  db.all("SELECT id, username, email, role, created_at FROM users", (err, users) => {
+  db.all("SELECT id, username, email, role, is_active, must_change_password, last_password_change, created_at FROM users", (err, users) => {
     if (err) {
       return res.status(500).json({ error: 'Fehler beim Laden der Benutzer' });
     }
     res.json(users);
+  });
+});
+
+// Update user (Admin only)
+app.put('/api/users/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  const { id } = req.params;
+  const { role, is_active, must_change_password } = req.body;
+
+  const updates = [];
+  const values = [];
+
+  if (role !== undefined) {
+    updates.push('role = ?');
+    values.push(role);
+  }
+
+  if (is_active !== undefined) {
+    updates.push('is_active = ?');
+    values.push(is_active ? 1 : 0);
+  }
+
+  if (must_change_password !== undefined) {
+    updates.push('must_change_password = ?');
+    values.push(must_change_password ? 1 : 0);
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'Keine Änderungen angegeben' });
+  }
+
+  values.push(id);
+
+  db.run(
+    `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+    values,
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: 'Fehler beim Aktualisieren des Benutzers' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+      }
+      res.json({ message: 'Benutzer erfolgreich aktualisiert' });
+    }
+  );
+});
+
+// Delete user (Admin only)
+app.delete('/api/users/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  const { id } = req.params;
+
+  // Prevent admin from deleting themselves
+  if (id === req.user.id) {
+    return res.status(400).json({ error: 'Sie können sich nicht selbst löschen' });
+  }
+
+  db.run("DELETE FROM users WHERE id = ?", [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: 'Fehler beim Löschen des Benutzers' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    res.json({ message: 'Benutzer erfolgreich gelöscht' });
+  });
+});
+
+// Password change endpoint
+app.post('/api/auth/change-password', authenticateToken, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Aktuelles und neues Passwort sind erforderlich' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Das neue Passwort muss mindestens 6 Zeichen lang sein' });
+  }
+
+  db.get("SELECT * FROM users WHERE id = ?", [userId], (err, user) => {
+    if (err) {
+      return res.status(500).json({ error: 'Datenbankfehler' });
+    }
+
+    if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
+      return res.status(401).json({ error: 'Aktuelles Passwort ist falsch' });
+    }
+
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    const now = new Date().toISOString();
+
+    db.run(
+      "UPDATE users SET password = ?, must_change_password = 0, last_password_change = ? WHERE id = ?",
+      [hashedPassword, now, userId],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: 'Fehler beim Ändern des Passworts' });
+        }
+        res.json({ message: 'Passwort erfolgreich geändert' });
+      }
+    );
+  });
+});
+
+// Category Management
+app.get('/api/categories', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM categories ORDER BY name", (err, categories) => {
+    if (err) {
+      return res.status(500).json({ error: 'Fehler beim Laden der Kategorien' });
+    }
+    res.json(categories);
+  });
+});
+
+app.post('/api/categories', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  const { name, description, color, icon } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Kategoriename ist erforderlich' });
+  }
+
+  const categoryId = uuidv4();
+
+  db.run(
+    "INSERT INTO categories (id, name, description, color, icon) VALUES (?, ?, ?, ?, ?)",
+    [categoryId, name, description || '', color || '#1976d2', icon || 'folder'],
+    function(err) {
+      if (err) {
+        if (err.code === 'SQLITE_CONSTRAINT') {
+          return res.status(400).json({ error: 'Kategorie existiert bereits' });
+        }
+        return res.status(500).json({ error: 'Fehler beim Erstellen der Kategorie' });
+      }
+      res.status(201).json({ 
+        id: categoryId, 
+        name, 
+        description, 
+        color: color || '#1976d2', 
+        icon: icon || 'folder' 
+      });
+    }
+  );
+});
+
+app.put('/api/categories/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  const { id } = req.params;
+  const { name, description, color, icon } = req.body;
+
+  const updates = [];
+  const values = [];
+
+  if (name !== undefined) {
+    updates.push('name = ?');
+    values.push(name);
+  }
+
+  if (description !== undefined) {
+    updates.push('description = ?');
+    values.push(description);
+  }
+
+  if (color !== undefined) {
+    updates.push('color = ?');
+    values.push(color);
+  }
+
+  if (icon !== undefined) {
+    updates.push('icon = ?');
+    values.push(icon);
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'Keine Änderungen angegeben' });
+  }
+
+  values.push(id);
+
+  db.run(
+    `UPDATE categories SET ${updates.join(', ')} WHERE id = ?`,
+    values,
+    function(err) {
+      if (err) {
+        if (err.code === 'SQLITE_CONSTRAINT') {
+          return res.status(400).json({ error: 'Kategoriename existiert bereits' });
+        }
+        return res.status(500).json({ error: 'Fehler beim Aktualisieren der Kategorie' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Kategorie nicht gefunden' });
+      }
+      res.json({ message: 'Kategorie erfolgreich aktualisiert' });
+    }
+  );
+});
+
+app.delete('/api/categories/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+
+  const { id } = req.params;
+
+  db.run("DELETE FROM categories WHERE id = ?", [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: 'Fehler beim Löschen der Kategorie' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Kategorie nicht gefunden' });
+    }
+    res.json({ message: 'Kategorie erfolgreich gelöscht' });
   });
 });
 
