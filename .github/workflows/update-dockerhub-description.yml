@@ -1,0 +1,26 @@
+name: Update Docker Hub Description
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - dockerhub-description.md
+      - README.md
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-docker-hub-description:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update Docker Hub Description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: chicohaager/lectoria
+          readme-filepath: ./dockerhub-description.md
+          short-description: "📚 Modern digital library management system with PostgreSQL, multilingual support, and PWA capabilities"
