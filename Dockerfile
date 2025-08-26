@@ -10,8 +10,8 @@ COPY package*.json ./
 # Install backend dependencies
 RUN npm ci --only=production
 
-# Copy frontend package files
-COPY frontend/package*.json ./frontend/
+# Copy all source code first
+COPY . .
 
 # Install frontend dependencies and build
 WORKDIR /app/frontend
@@ -19,9 +19,6 @@ RUN npm ci && npm run build
 
 # Go back to app directory
 WORKDIR /app
-
-# Copy source code
-COPY . .
 
 # Create necessary directories
 RUN mkdir -p uploads data
