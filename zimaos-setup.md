@@ -1,145 +1,145 @@
-# 🏠 ZimaOS Setup für Lectoria BookManager
+# 🏠 ZimaOS Setup for Lectoria BookManager
 
-## 🌍 Verfügbar in 14 Sprachen!
-Lectoria unterstützt jetzt 14 Sprachen: Deutsch, Englisch, Französisch, Spanisch, Italienisch, Portugiesisch, Niederländisch, Russisch, Polnisch, Türkisch, Chinesisch, Japanisch, Koreanisch und Arabisch.
+## 🌍 Available in 14 Languages!
+Lectoria now supports 14 languages: German, English, French, Spanish, Italian, Portuguese, Dutch, Russian, Polish, Turkish, Chinese, Japanese, Korean, and Arabic.
 
-## 📋 Voraussetzungen
-- ZimaOS System mit Docker Support
-- SSH-Zugriff auf Ihr ZimaOS System
-- Mindestens 2GB freier Speicher
+## 📋 Prerequisites
+- ZimaOS system with Docker support
+- SSH access to your ZimaOS system
+- At least 2GB free storage
 
 ## 🚀 Installation
 
-### 1. Verzeichnisse erstellen
+### 1. Create Directories
 ```bash
-# SSH zu Ihrem ZimaOS System, dann:
+# SSH to your ZimaOS system, then:
 sudo mkdir -p /DATA/AppData/lectoria/{data,uploads,logs,ssl}
 sudo chown -R $(whoami):$(whoami) /DATA/AppData/lectoria
 ```
 
-### 2. Repository klonen
+### 2. Clone Repository
 ```bash
 cd /DATA/AppData/lectoria
 git clone https://github.com/chicohaager/lectoria.git app
 cd app
 ```
 
-### 3. Environment konfigurieren
+### 3. Configure Environment
 ```bash
-# JWT Secret generieren
+# Generate JWT Secret
 openssl rand -hex 32
 
-# Environment-Datei erstellen
+# Create environment file
 cp .env.example .env
 nano .env
 ```
 
-Bearbeiten Sie die `.env` Datei:
+Edit the `.env` file:
 ```bash
 NODE_ENV=production
 PORT=3000
-JWT_SECRET=ihr-generierter-secret-key-hier
+JWT_SECRET=your-generated-secret-key-here
 ```
 
-### 4. ZimaOS Docker Compose starten
+### 4. Start ZimaOS Docker Compose
 ```bash
-# Mit ZimaOS-spezifischer Konfiguration
+# With ZimaOS-specific configuration
 docker-compose -f docker-compose.zimaos.yml up -d --build
 ```
 
-## 🌐 Zugriff
+## 🌐 Access
 
-### Lokal im Netzwerk
-- **URL:** `http://IHRE-ZIMA-IP:3000`
-- **Standard-Login:** admin / admin123
+### Local Network
+- **URL:** `http://YOUR-ZIMA-IP:3000`
+- **Default Login:** admin / admin123
 
-### Über ZimaOS Dashboard
-Falls verfügbar, können Sie die App auch über das ZimaOS Web-Interface verwalten.
+### Via ZimaOS Dashboard
+If available, you can also manage the app through the ZimaOS web interface.
 
-## 📁 Ordnerstruktur auf ZimaOS
+## 📁 Folder Structure on ZimaOS
 ```
 /DATA/AppData/lectoria/
 ├── app/                    # Git Repository
 │   ├── docker-compose.zimaos.yml
 │   ├── Dockerfile
 │   └── backend_server.js
-├── data/                   # Datenbank (persistent)
+├── data/                   # Database (persistent)
 │   └── bookmanager.db
-├── uploads/                # Hochgeladene Bücher (persistent)
+├── uploads/                # Uploaded books (persistent)
 │   ├── .gitkeep
-│   └── [PDF/EPUB Dateien]
-└── logs/                   # Application Logs
+│   └── [PDF/EPUB files]
+└── logs/                   # Application logs
 ```
 
-## 🔧 ZimaOS-spezifische Features
+## 🔧 ZimaOS-specific Features
 
 ### Persistent Storage
-- ✅ Alle Daten bleiben bei Container-Neustarts erhalten
-- ✅ Datenbank: `/DATA/AppData/lectoria/data`
+- ✅ All data persists through container restarts
+- ✅ Database: `/DATA/AppData/lectoria/data`
 - ✅ Uploads: `/DATA/AppData/lectoria/uploads`
 - ✅ Logs: `/DATA/AppData/lectoria/logs`
 
 ### Performance
-- ✅ Optimiert für NAS-Umgebung
-- ✅ Niedrige CPU/RAM-Nutzung
-- ✅ Effiziente Datei-I/O
+- ✅ Optimized for NAS environment
+- ✅ Low CPU/RAM usage
+- ✅ Efficient file I/O
 
-## 🛠 Wartung
+## 🛠 Maintenance
 
-### Container-Status prüfen
+### Check Container Status
 ```bash
 cd /DATA/AppData/lectoria/app
 docker-compose -f docker-compose.zimaos.yml ps
 ```
 
-### Logs anzeigen
+### View Logs
 ```bash
 docker-compose -f docker-compose.zimaos.yml logs -f lectoria
 ```
 
-### Updates installieren
+### Install Updates
 ```bash
 cd /DATA/AppData/lectoria/app
 git pull
 docker-compose -f docker-compose.zimaos.yml up -d --build
 ```
 
-### Backup erstellen
+### Create Backup
 ```bash
-# Datenbank sichern
+# Backup database
 cp /DATA/AppData/lectoria/data/bookmanager.db /DATA/AppData/lectoria/backup_$(date +%Y%m%d).db
 
-# Uploads sichern
+# Backup uploads
 tar -czf /DATA/AppData/lectoria/uploads_backup_$(date +%Y%m%d).tar.gz /DATA/AppData/lectoria/uploads/
 ```
 
-## 🔒 Sicherheit für ZimaOS
+## 🔒 Security for ZimaOS
 
 ### Firewall (optional)
 ```bash
-# Port 3000 öffnen (falls Firewall aktiv)
+# Open port 3000 (if firewall is active)
 sudo ufw allow 3000/tcp
 ```
 
-### SSL-Zertifikat (optional)
-Für HTTPS können Sie ein SSL-Zertifikat in `/DATA/AppData/lectoria/ssl/` ablegen und nginx aktivieren.
+### SSL Certificate (optional)
+For HTTPS, you can place an SSL certificate in `/DATA/AppData/lectoria/ssl/` and enable nginx.
 
 ## ⚠️ Troubleshooting
 
-### Port bereits belegt
+### Port Already in Use
 ```bash
-# Anderen Port verwenden
+# Use different port
 docker-compose -f docker-compose.zimaos.yml down
-# Bearbeiten Sie docker-compose.zimaos.yml: ports: "3001:3000"
+# Edit docker-compose.zimaos.yml: ports: "3001:3000"
 docker-compose -f docker-compose.zimaos.yml up -d
 ```
 
-### Speicherplatz prüfen
+### Check Disk Space
 ```bash
 df -h /DATA
 ```
 
-### Container neustarten
+### Restart Container
 ```bash
 docker-compose -f docker-compose.zimaos.yml restart
 ```
@@ -147,7 +147,7 @@ docker-compose -f docker-compose.zimaos.yml restart
 ## 📊 Monitoring
 
 ### ZimaOS Dashboard Integration
-Die App läuft als Standard-Container und sollte im ZimaOS Dashboard sichtbar sein.
+The app runs as a standard container and should be visible in the ZimaOS dashboard.
 
 ### Health Check
 ```bash
@@ -156,4 +156,4 @@ curl http://localhost:3000
 
 ---
 
-**🏠 Perfekt für Ihr ZimaOS Home Setup!**
+**🏠 Perfect for your ZimaOS home setup!**
