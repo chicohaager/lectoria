@@ -5,6 +5,29 @@ All notable changes to Lectoria BookManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2025-08-26
+
+### 🚀 Added - Progressive Web App (PWA) Support
+- **PWA Installation**: Install Lectoria as native app on mobile and desktop
+- **Offline Capabilities**: Service worker for offline functionality
+- **Browser Support**: Manual installation instructions for Chrome, Safari, Firefox
+- **Cache Management**: Smart caching strategies for better performance
+
+### 🔄 Changed - Database Migration
+- **PostgreSQL Migration**: Complete migration from SQLite to PostgreSQL
+- **Docker Setup**: Updated Docker Compose to use PostgreSQL container
+- **Documentation**: Updated all docs to reflect PostgreSQL usage
+- **Build Process**: Improved Dockerfile for proper frontend asset compilation
+
+### 🐛 Fixed
+- **PWA Installation**: Fixed install prompts across different browsers
+- **ESLint Warnings**: Resolved unused variable warnings in React components
+- **Docker Build**: Corrected build order for frontend assets
+
+### ❌ Removed
+- **SQLite References**: Removed all SQLite mentions from documentation
+- **Legacy Files**: Cleaned up old database references
+
 ## [2.3.0] - 2025-08-25
 
 ### 🌍 Added - Complete Multilingual Support (14 Languages!)
