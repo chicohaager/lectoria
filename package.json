@@ -1,6 +1,6 @@
 {
     "name": "lectoria",
-    "version": "1.0.0",
+    "version": "2.3.0",
     "description": "Modern Book and Magazine Manager",
     "main": "backend_server.js",
     "scripts": {

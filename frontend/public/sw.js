@@ -1,17 +1,15 @@
 // Lectoria Service Worker for PWA functionality
-const CACHE_NAME = 'lectoria-v2.1';
-const STATIC_CACHE = 'lectoria-static-v2.1';
-const DYNAMIC_CACHE = 'lectoria-dynamic-v2.1';
+const CACHE_NAME = 'lectoria-v2.2';
+const STATIC_CACHE = 'lectoria-static-v2.2';
+const DYNAMIC_CACHE = 'lectoria-dynamic-v2.2';
 
 // Static files to cache immediately
 const STATIC_FILES = [
   '/',
-  '/app',
-  '/static/js/main.js',
-  '/static/css/main.css',
   '/manifest.json',
-  '/logo.png',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'
+  '/logo.png'
+  // Note: Don't cache versioned static files or external resources on install
+  // They will be cached dynamically when accessed
 ];
 
 // API endpoints to cache with network-first strategy
@@ -29,7 +27,14 @@ self.addEventListener('install', (event) => {
     caches.open(STATIC_CACHE)
       .then((cache) => {
         console.log('[SW] Caching static files');
-        return cache.addAll(STATIC_FILES);
+        // Only cache files that actually exist
+        return Promise.all(
+          STATIC_FILES.map(url => 
+            cache.add(url).catch(err => {
+              console.warn(`[SW] Failed to cache ${url}:`, err);
+            })
+          )
+        );
       })
       .then(() => {
         console.log('[SW] Static files cached successfully');
@@ -74,8 +79,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip chrome-extension requests
-  if (url.protocol === 'chrome-extension:') {
+  // Skip chrome-extension and other non-http requests
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+  
+  // Skip external resources (like Google Fonts)
+  if (!url.hostname.includes(location.hostname) && !url.hostname.includes('localhost')) {
     return;
   }
 
@@ -95,10 +105,45 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle navigation requests with network-first, fallback to app shell
+  // Handle navigation requests - always try network first
   if (request.mode === 'navigate') {
     event.respondWith(
-      networkFirstWithFallback(request)
+      fetch(request).catch(() => {
+        // If offline, try to return cached index page
+        return caches.match('/').then(response => {
+          if (response) {
+            return response;
+          }
+          // Only show offline page if truly offline
+          if (!navigator.onLine) {
+            return new Response(
+              `<!DOCTYPE html>
+              <html>
+              <head>
+                <title>Lectoria - Offline</title>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                  body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                  .offline { color: #666; }
+                </style>
+              </head>
+              <body>
+                <h1>Lectoria</h1>
+                <div class="offline">
+                  <h2>Offline-Modus</h2>
+                  <p>Keine Internetverbindung verfügbar. Bitte versuchen Sie es später erneut.</p>
+                  <button onclick="window.location.reload()">Erneut versuchen</button>
+                </div>
+              </body>
+              </html>`,
+              { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+            );
+          }
+          // If online but fetch failed, don't show offline page
+          return new Response('Service temporarily unavailable', { status: 503 });
+        });
+      })
     );
     return;
   }
@@ -170,47 +215,7 @@ async function cacheFirstStrategy(request) {
   }
 }
 
-// Network-first with app shell fallback for navigation
-async function networkFirstWithFallback(request) {
-  try {
-    const networkResponse = await fetch(request);
-    return networkResponse;
-  } catch (error) {
-    console.log('[SW] Navigation failed, serving app shell');
-    
-    // Try to serve the app shell from cache
-    const appShell = await caches.match('/app');
-    if (appShell) {
-      return appShell;
-    }
-    
-    // Fallback to basic offline page
-    return new Response(
-      `<!DOCTYPE html>
-      <html>
-      <head>
-        <title>Lectoria - Offline</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .offline { color: #666; }
-        </style>
-      </head>
-      <body>
-        <h1>Lectoria</h1>
-        <div class="offline">
-          <h2>Offline-Modus</h2>
-          <p>Keine Internetverbindung verfügbar. Bitte versuchen Sie es später erneut.</p>
-          <button onclick="window.location.reload()">Erneut versuchen</button>
-        </div>
-      </body>
-      </html>`,
-      {
-        headers: { 'Content-Type': 'text/html' }
-      }
-    );
-  }
-}
+// Removed networkFirstWithFallback - now handled inline in fetch event
 
 // Check if a file is static
 function isStaticFile(pathname) {

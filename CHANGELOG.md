@@ -5,6 +5,45 @@ All notable changes to Lectoria BookManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-08-25
+
+### 🌍 Added - Complete Multilingual Support (14 Languages!)
+- **12 New Languages Added**: Expanded from 2 to 14 fully supported languages
+- **Complete UI Translations**: Every interface element, admin panel, and message translated
+- **Languages Supported**:
+  - 🇺🇸 English (en)
+  - 🇩🇪 German/Deutsch (de)
+  - 🇫🇷 French/Français (fr)
+  - 🇪🇸 Spanish/Español (es)
+  - 🇮🇹 Italian/Italiano (it)
+  - 🇵🇹 Portuguese/Português (pt)
+  - 🇳🇱 Dutch/Nederlands (nl)
+  - 🇷🇺 Russian/Русский (ru)
+  - 🇵🇱 Polish/Polski (pl)
+  - 🇹🇷 Turkish/Türkçe (tr)
+  - 🇨🇳 Chinese/中文 (zh)
+  - 🇯🇵 Japanese/日本語 (ja)
+  - 🇰🇷 Korean/한국어 (ko)
+  - 🇸🇦 Arabic/العربية (ar)
+
+### 🎯 Enhanced - Localization Features
+- **Dynamic Date Formatting**: Dates now display in selected language format
+- **Language Selector**: Easy language switching from navbar with flag icons
+- **Persistent Language**: User language preference saved in localStorage
+- **Complete Admin Translation**: All admin interface text properly translated
+- **PWA Installation Guide**: Localized installation instructions for each language
+
+### 🔧 Fixed - Translation Issues
+- **Date Localization Bug**: Fixed hardcoded German dates in admin interface
+- **Missing Translation Keys**: Added all missing admin panel translations
+- **Italian Translation**: Corrected mixed German-Italian text in admin tables
+- **Duplicate Keys**: Removed duplicate translation keys in Russian section
+
+### 📦 Enhanced - Docker Support
+- **Frontend Build**: Dockerfile now properly builds frontend with translations
+- **Multi-stage Build**: Optimized Docker build process for production
+- **ZimaOS Compatibility**: Maintained compatibility with ZimaOS deployment
+
 ## [2.2.0] - 2025-08-24
 
 ### 🌍 Added - Database-Driven Multilingual System

@@ -450,7 +450,28 @@ function AdminInterface() {
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('de-DE', {
+    
+    // Map language codes to locale codes
+    const localeMap = {
+      'en': 'en-US',
+      'de': 'de-DE',
+      'fr': 'fr-FR',
+      'es': 'es-ES',
+      'it': 'it-IT',
+      'pt': 'pt-PT',
+      'nl': 'nl-NL',
+      'ru': 'ru-RU',
+      'pl': 'pl-PL',
+      'tr': 'tr-TR',
+      'zh': 'zh-CN',
+      'ja': 'ja-JP',
+      'ko': 'ko-KR',
+      'ar': 'ar-SA'
+    };
+    
+    const locale = localeMap[language] || 'en-US';
+    
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -717,12 +738,11 @@ function AdminInterface() {
 
           <Typography variant="body1" paragraph>
             {t('admin.calibreImportDescription')} 
-            Unterstützte Formate: PDF und EPUB.
+            {t('admin.calibreSupportedFormats')}
           </Typography>
 
           <Alert severity="info" sx={{ mb: 2 }}>
-            <strong>{t('admin.note')}:</strong> {t('admin.calibrePathNote')} 
-            Dieser sollte die Datei "metadata.db" enthalten.
+            <strong>{t('admin.note')}:</strong> {t('admin.calibrePathNote')}
           </Alert>
 
           {calibreResult && (
@@ -730,12 +750,12 @@ function AdminInterface() {
               severity={calibreResult.errors?.length > 0 ? "warning" : "success"} 
               sx={{ mb: 2 }}
             >
-              <strong>Import-Ergebnis:</strong>
+              <strong>{t('admin.calibreImportResult')}</strong>
               <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
                 <li>{calibreResult.imported || 0} {t('admin.booksImported')}</li>
-                <li>{calibreResult.skipped || 0} Bücher übersprungen (bereits vorhanden oder nicht unterstützt)</li>
+                <li>{calibreResult.skipped || 0} {t('admin.calibreBooksSkipped')}</li>
                 {calibreResult.errors?.length > 0 && (
-                  <li>{calibreResult.errors?.length} Fehler aufgetreten</li>
+                  <li>{calibreResult.errors?.length} {t('admin.calibreErrorsOccurred')}</li>
                 )}
               </ul>
               {calibreResult.errors?.length > 0 && (
@@ -1126,13 +1146,13 @@ function AdminInterface() {
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Alert severity="info">
               <Typography variant="body2">
-                <strong>Anweisungen:</strong>
+                <strong>{t('admin.calibreInstructions')}</strong>
               </Typography>
               <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-                <li>Geben Sie den vollständigen Pfad zu Ihrem Calibre-Bibliotheksordner ein</li>
-                <li>Der Ordner sollte die Datei "metadata.db" enthalten</li>
-                <li>Nur PDF- und EPUB-Dateien werden importiert</li>
-                <li>Bereits vorhandene Bücher (gleicher Titel + Autor) werden übersprungen</li>
+                <li>{t('admin.calibrePathInstruction')}</li>
+                <li>{t('admin.calibreMetadataNote')}</li>
+                <li>{t('admin.calibreFormatInstruction')}</li>
+                <li>{t('admin.calibreDuplicateInstruction')}</li>
               </ul>
             </Alert>
 
@@ -1158,7 +1178,7 @@ function AdminInterface() {
                 </Typography>
                 <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
                   <li>{calibreResult.imported || 0} {t('admin.booksImported')}</li>
-                  <li>{calibreResult.skipped || 0} Bücher übersprungen</li>
+                  <li>{calibreResult.skipped || 0} {t('admin.calibreBooksSkipped')}</li>
                   {calibreResult.errors?.length > 0 && (
                     <li>{calibreResult.errors?.length} Fehler</li>
                   )}

@@ -1,5 +1,8 @@
 # 🏠 ZimaOS Setup für Lectoria BookManager
 
+## 🌍 Verfügbar in 14 Sprachen!
+Lectoria unterstützt jetzt 14 Sprachen: Deutsch, Englisch, Französisch, Spanisch, Italienisch, Portugiesisch, Niederländisch, Russisch, Polnisch, Türkisch, Chinesisch, Japanisch, Koreanisch und Arabisch.
+
 ## 📋 Voraussetzungen
 - ZimaOS System mit Docker Support
 - SSH-Zugriff auf Ihr ZimaOS System

@@ -93,6 +93,7 @@ function EnhancedDashboard() {
     publisher: '',
     publishedDate: '',
     language: '',
+    coverUrl: null,
   });
 
   // CSV Export States
@@ -248,6 +249,7 @@ function EnhancedDashboard() {
           publisher: response.data.publisher || '',
           publishedDate: formattedDate,
           language: response.data.language || 'de',
+          coverUrl: response.data.coverUrl,
         });
         setSuccess('Metadaten via ISBN gefunden!');
       } else {
@@ -292,6 +294,7 @@ function EnhancedDashboard() {
       publisher: result.publisher,
       publishedDate: result.publishedDate,
       language: result.language,
+      coverUrl: result.coverUrl,
     });
     setSearchResults([]);
   };
@@ -875,11 +878,39 @@ function EnhancedDashboard() {
                     Suchergebnisse:
                   </Typography>
                   {searchResults.map((result, index) => (
-                    <Paper key={index} sx={{ p: 2, mb: 1, cursor: 'pointer' }} onClick={() => handleSelectSearchResult(result)}>
-                      <Typography variant="subtitle2">{result.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        von {result.authors} • {result.publisher} ({result.publishedDate})
-                      </Typography>
+                    <Paper 
+                      key={index} 
+                      sx={{ 
+                        p: 2, 
+                        mb: 1, 
+                        cursor: 'pointer',
+                        display: 'flex',
+                        gap: 2,
+                        alignItems: 'center'
+                      }} 
+                      onClick={() => handleSelectSearchResult(result)}
+                    >
+                      {result.coverUrl && (
+                        <img 
+                          src={`/api/cover-proxy?url=${encodeURIComponent(result.coverUrl)}`} 
+                          alt={result.title}
+                          style={{ 
+                            width: 50, 
+                            height: 70, 
+                            objectFit: 'cover',
+                            borderRadius: 4 
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <Box flex={1}>
+                        <Typography variant="subtitle2">{result.title}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          von {result.authors} • {result.publisher} ({result.publishedDate})
+                        </Typography>
+                      </Box>
                     </Paper>
                   ))}
                 </Box>
@@ -891,6 +922,39 @@ function EnhancedDashboard() {
               <Typography variant="h6" gutterBottom>
                 {t('dashboard.manualEdit')}
               </Typography>
+              
+              {/* Cover Preview if available */}
+              {metadataFormData.coverUrl && (
+                <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <img 
+                    src={`/api/cover-proxy?url=${encodeURIComponent(metadataFormData.coverUrl)}`} 
+                    alt="Book cover"
+                    style={{ 
+                      width: 120, 
+                      height: 180, 
+                      objectFit: 'cover',
+                      borderRadius: 8,
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Cover-Bild gefunden
+                    </Typography>
+                    <Button 
+                      size="small" 
+                      color="error" 
+                      onClick={() => setMetadataFormData({ ...metadataFormData, coverUrl: null })}
+                    >
+                      Cover entfernen
+                    </Button>
+                  </Box>
+                </Box>
+              )}
+              
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <TextField

@@ -4,17 +4,27 @@ FROM node:18-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files for backend
 COPY package*.json ./
 
-# Install dependencies
+# Install backend dependencies
 RUN npm ci --only=production
+
+# Copy frontend package files
+COPY frontend/package*.json ./frontend/
+
+# Install frontend dependencies and build
+WORKDIR /app/frontend
+RUN npm ci && npm run build
+
+# Go back to app directory
+WORKDIR /app
 
 # Copy source code
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p uploads data frontend/build
+RUN mkdir -p uploads data
 
 # Production stage
 FROM node:18-alpine AS production
@@ -37,7 +47,7 @@ RUN npm ci --only=production && npm cache clean --force
 COPY --from=builder --chown=lectoria:nodejs /app .
 
 # Create directories with correct permissions
-RUN mkdir -p uploads data frontend/build && \
+RUN mkdir -p uploads data frontend/build public && \
     chown -R lectoria:nodejs /app && \
     chmod -R 755 /app
 
