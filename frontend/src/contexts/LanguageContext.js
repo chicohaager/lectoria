@@ -11,9 +11,32 @@ export const useLanguage = () => {
   return context;
 };
 
+// Available languages with their display names and flags
+export const availableLanguages = [
+  { code: 'en', name: 'English', flag: '🇺🇸' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', name: 'Português', flag: '🇵🇹' },
+  { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'ko', name: '한국어', flag: '🇰🇷' },
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+];
+
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('language') || 'en';
+    const stored = localStorage.getItem('language');
+    // Validate stored language exists in available languages
+    if (stored && availableLanguages.some(lang => lang.code === stored)) {
+      return stored;
+    }
+    return 'en'; // Default fallback
   });
 
   useEffect(() => {
@@ -21,7 +44,18 @@ export const LanguageProvider = ({ children }) => {
   }, [language]);
 
   const toggleLanguage = () => {
+    // Legacy toggle function for backward compatibility
     setLanguage(prev => prev === 'en' ? 'de' : 'en');
+  };
+
+  const changeLanguage = (langCode) => {
+    if (availableLanguages.some(lang => lang.code === langCode)) {
+      setLanguage(langCode);
+    }
+  };
+
+  const getCurrentLanguage = () => {
+    return availableLanguages.find(lang => lang.code === language) || availableLanguages[0];
   };
 
   const t = (key) => {
@@ -44,6 +78,9 @@ export const LanguageProvider = ({ children }) => {
     language,
     setLanguage,
     toggleLanguage,
+    changeLanguage,
+    getCurrentLanguage,
+    availableLanguages,
     t
   };
 

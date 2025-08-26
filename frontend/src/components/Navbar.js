@@ -34,8 +34,9 @@ function Navbar({ user, onLogout }) {
   const location = useLocation();
   const theme = useTheme();
   const colorMode = useContext(ColorModeContext);
-  const { language, toggleLanguage, t } = useLanguage();
+  const { language, changeLanguage, getCurrentLanguage, availableLanguages, t } = useLanguage();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [langMenuAnchorEl, setLangMenuAnchorEl] = useState(null);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -43,6 +44,19 @@ function Navbar({ user, onLogout }) {
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLanguageMenuOpen = (event) => {
+    setLangMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleLanguageMenuClose = () => {
+    setLangMenuAnchorEl(null);
+  };
+
+  const handleLanguageChange = (langCode) => {
+    changeLanguage(langCode);
+    handleLanguageMenuClose();
   };
 
   const handleLogout = () => {
@@ -126,17 +140,17 @@ function Navbar({ user, onLogout }) {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {/* Language Toggle */}
+          {/* Language Selector */}
           <Button
             color="inherit"
-            onClick={toggleLanguage}
-            title={language === 'en' ? 'Zu Deutsch wechseln' : 'Switch to English'}
+            onClick={handleLanguageMenuOpen}
+            title="Sprache auswählen / Select language"
             variant="outlined"
             size="small"
             sx={{
               borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.5)',
               color: theme.palette.mode === 'dark' ? 'white' : 'white',
-              minWidth: '70px',
+              minWidth: '80px',
               fontSize: '16px',
               '&:hover': {
                 borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.7)',
@@ -146,8 +160,25 @@ function Navbar({ user, onLogout }) {
               },
             }}
           >
-            {language === 'en' ? '🇺🇸 EN' : '🇩🇪 DE'}
+            {getCurrentLanguage().flag} {getCurrentLanguage().code.toUpperCase()}
           </Button>
+          <Menu
+            anchorEl={langMenuAnchorEl}
+            open={Boolean(langMenuAnchorEl)}
+            onClose={handleLanguageMenuClose}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          >
+            {availableLanguages.map((lang) => (
+              <MenuItem
+                key={lang.code}
+                onClick={() => handleLanguageChange(lang.code)}
+                selected={language === lang.code}
+              >
+                {lang.flag} {lang.name}
+              </MenuItem>
+            ))}
+          </Menu>
 
           {/* Theme Mode Toggle */}
           <IconButton

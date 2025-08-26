@@ -104,7 +104,7 @@ function PWAManager({ showInstallButton = true }) {
         
         // Show success message
         const event = new CustomEvent('showSuccess', {
-          detail: 'App erfolgreich installiert!'
+          detail: t('pwa.installSuccess')
         });
         window.dispatchEvent(event);
       } else {
@@ -168,7 +168,7 @@ function PWAManager({ showInstallButton = true }) {
           size="small"
           sx={{ ml: 1 }}
         >
-          App installieren
+          {t('pwa.installButton')}
         </Button>
       )}
 
@@ -236,20 +236,20 @@ function PWAManager({ showInstallButton = true }) {
           </Typography>
 
           <Typography variant="body2" sx={{ mb: 2, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
-            <strong>📱 Manuelle Installation je Browser:</strong><br/>
-            • <strong>Chrome/Edge (Desktop):</strong> Adressleiste → 📱 Symbol oder ⋮ Menü → "App installieren"<br/>
-            • <strong>Chrome (Android):</strong> ⋮ Menü → "App installieren" oder "Zum Startbildschirm hinzufügen"<br/>
-            • <strong>Safari (iOS):</strong> Teilen-Button (⬆️) → "Zum Home-Bildschirm hinzufügen"<br/>
-            • <strong>Firefox:</strong> ⋮ Menü → "Diese Seite installieren" oder "Zum Startbildschirm hinzufügen"<br/>
-            • <strong>Safari (macOS):</strong> Ablage → "Zum Dock hinzufügen"
+            <strong>{t('pwa.manualInstallTitle')}</strong><br/>
+            • <strong>Chrome/Edge (Desktop):</strong> {t('pwa.chromeDesktop')}<br/>
+            • <strong>Chrome (Android):</strong> {t('pwa.chromeAndroid')}<br/>
+            • <strong>Safari (iOS):</strong> {t('pwa.safariIOS')}<br/>
+            • <strong>Firefox:</strong> {t('pwa.firefox')}<br/>
+            • <strong>Safari (macOS):</strong> {t('pwa.safariMacOS')}
           </Typography>
 
           <Typography variant="body2" sx={{ mb: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
-            <strong>✅ Nach der Installation:</strong><br/>
-            • App erscheint auf dem Home-Bildschirm/Desktop<br/>
-            • Läuft in eigenem Fenster ohne Browser-UI<br/>
-            • Funktioniert auch offline<br/>
-            • Schnellere Ladezeiten durch Caching
+            <strong>{t('pwa.afterInstallTitle')}</strong><br/>
+            • {t('pwa.afterInstall1')}<br/>
+            • {t('pwa.afterInstall2')}<br/>
+            • {t('pwa.afterInstall3')}<br/>
+            • {t('pwa.afterInstall4')}
           </Typography>
 
           <List>
@@ -258,8 +258,8 @@ function PWAManager({ showInstallButton = true }) {
                 <Smartphone />
               </ListItemIcon>
               <ListItemText
-                primary="Schnellerer Zugriff"
-                secondary="Direkt vom Home-Bildschirm starten"
+                primary={t('pwa.quickAccess')}
+                secondary={t('pwa.quickAccessDesc')}
               />
             </ListItem>
             
@@ -269,7 +269,7 @@ function PWAManager({ showInstallButton = true }) {
               </ListItemIcon>
               <ListItemText
                 primary={t('pwa.offlineFunctionality')}
-                secondary="Bibliothek auch ohne Internet ansehen"
+                secondary={t('pwa.offlineLibrary')}
               />
             </ListItem>
             
@@ -278,8 +278,8 @@ function PWAManager({ showInstallButton = true }) {
                 <Computer />
               </ListItemIcon>
               <ListItemText
-                primary="Native App-Erfahrung"
-                secondary="Vollbild-Modus ohne Browser-Interface"
+                primary={t('pwa.nativeExperience')}
+                secondary={t('pwa.nativeExperienceDesc')}
               />
             </ListItem>
 
@@ -316,7 +316,7 @@ function PWAManager({ showInstallButton = true }) {
 
           {isStandalone() && (
             <Alert severity="info" sx={{ mt: 2 }}>
-              Lectoria ist bereits als App installiert!
+              {t('pwa.alreadyInstalled')}
             </Alert>
           )}
         </DialogContent>
@@ -330,7 +330,7 @@ function PWAManager({ showInstallButton = true }) {
                 onClick={() => window.location.reload()}
                 fullWidth
               >
-                App neu laden
+                {t('pwa.reloadApp')}
               </Button>
               <Button onClick={() => setShowInstallDialog(false)} fullWidth>
                 {t('pwa.close')}
@@ -345,12 +345,12 @@ function PWAManager({ showInstallButton = true }) {
                   onClick={handleInstall}
                   fullWidth
                 >
-                  Automatisch installieren
+                  {t('pwa.autoInstall')}
                 </Button>
               )}
               
               <Typography variant="body2" textAlign="center" color="text.secondary" sx={{ my: 1 }}>
-                Oder verwenden Sie die Browser-spezifischen Schritte oben ⬆️
+                {t('pwa.orUseManual')}
               </Typography>
               
               <Box sx={{ display: 'flex', gap: 1 }}>
@@ -360,17 +360,17 @@ function PWAManager({ showInstallButton = true }) {
                     // Copy current URL to clipboard for easy sharing/bookmarking
                     navigator.clipboard?.writeText(window.location.href);
                     const event = new CustomEvent('showSuccess', {
-                      detail: 'URL kopiert! Sie können diese als Lesezeichen speichern.'
+                      detail: t('pwa.urlCopied')
                     });
                     window.dispatchEvent(event);
                   }}
                   size="small"
                 >
-                  URL kopieren
+                  {t('pwa.copyUrl')}
                 </Button>
                 
                 <Button onClick={() => setShowInstallDialog(false)} size="small">
-                  Später
+                  {t('pwa.later')}
                 </Button>
               </Box>
             </Box>

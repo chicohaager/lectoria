@@ -439,7 +439,7 @@ app.post('/api/books/upload', authenticateToken, upload.fields([
     }
   };
 
-  const { title, author, description, type, category_id } = req.body;
+  const { title, author, description, type, category_id, coverUrl } = req.body;
   
   // Input validation with improved error handling
   try {
@@ -469,6 +469,35 @@ app.post('/api/books/upload', authenticateToken, upload.fields([
     }
 
     const bookId = uuidv4();
+    let coverImagePath = null;
+
+    // Handle cover image - either uploaded file or URL
+    if (coverFile) {
+      coverImagePath = `/uploads/${coverFile.filename}`;
+    } else if (coverUrl) {
+      // Download cover from URL
+      try {
+        const coverResponse = await axios.get(coverUrl, {
+          responseType: 'arraybuffer',
+          timeout: 10000
+        });
+        
+        // Generate filename for cover
+        const timestamp = Date.now();
+        const randomNum = Math.floor(Math.random() * 1000000000);
+        const coverExtension = coverUrl.includes('.png') ? 'png' : 'jpg';
+        const coverFilename = `${timestamp}-${randomNum}-cover.${coverExtension}`;
+        const coverPath = path.join(__dirname, './uploads', coverFilename);
+        
+        // Save cover image
+        await fs.writeFile(coverPath, Buffer.from(coverResponse.data));
+        
+        coverImagePath = `/uploads/${coverFilename}`;
+      } catch (coverError) {
+        console.error('Error downloading cover from URL:', coverError);
+        // Continue without cover if download fails
+      }
+    }
 
     const bookData = {
       id: bookId,
@@ -480,7 +509,7 @@ app.post('/api/books/upload', authenticateToken, upload.fields([
       filename: bookFile.originalname,
       filepath: bookFile.path,
       file_size: bookFile.size,
-      cover_image: coverFile ? `/uploads/${coverFile.filename}` : null,
+      cover_image: coverImagePath,
       uploaded_by: req.user.id
     };
 
@@ -944,6 +973,274 @@ app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Metadata API for book search with cover download
+app.post('/api/metadata/isbn/:isbn', authenticateToken, async (req, res) => {
+  const { isbn } = req.params;
+  
+  try {
+    // Try Google Books API first - try both with and without hyphens
+    const isbnClean = isbn.replace(/[-\s]/g, ''); // Remove hyphens and spaces
+    
+    let googleResponse = await axios.get(
+      `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`,
+      { timeout: 5000 }
+    );
+    
+    // If no results with original ISBN, try without hyphens
+    if (!googleResponse.data.items || googleResponse.data.items.length === 0) {
+      googleResponse = await axios.get(
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbnClean}`,
+        { timeout: 5000 }
+      );
+    }
+    
+    if (googleResponse.data.items && googleResponse.data.items.length > 0) {
+      // Find the best result - prefer books with covers, descriptions, and proper metadata
+      let bestBook = null;
+      let bestScore = -1;
+      
+      for (const item of googleResponse.data.items) {
+        const book = item.volumeInfo;
+        let score = 0;
+        
+        // Score based on available data quality
+        if (book.imageLinks) score += 10; // Cover image is very important
+        if (book.description && book.description.length > 50) score += 5; // Good description
+        if (book.publisher) score += 2; // Publisher info
+        if (book.authors && book.authors.length > 0) score += 3; // Author info
+        if (book.pageCount && book.pageCount > 0) score += 1; // Page count
+        if (book.categories && book.categories.length > 0) score += 1; // Categories
+        if (book.language === 'de' || book.language === 'en') score += 2; // Prefer German/English
+        
+        // Prefer exact ISBN match in industry identifiers
+        if (book.industryIdentifiers) {
+          for (const id of book.industryIdentifiers) {
+            const cleanId = id.identifier.replace(/[-\s]/g, '');
+            if (cleanId === isbnClean || id.identifier === isbn) {
+              score += 15; // Big bonus for exact ISBN match
+              break;
+            }
+          }
+        }
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestBook = book;
+        }
+      }
+      
+      // Use the best book found, or fall back to first if no clear winner
+      const book = bestBook || googleResponse.data.items[0].volumeInfo;
+      
+      // Prepare response data
+      const metadata = {
+        success: true,
+        title: book.title || '',
+        authors: book.authors ? book.authors.join(', ') : '',
+        description: book.description || '',
+        publisher: book.publisher || '',
+        publishedDate: book.publishedDate || '',
+        language: book.language || '',
+        pageCount: book.pageCount || null,
+        categories: book.categories || [],
+        coverUrl: null
+      };
+      
+      // Get the best available cover image
+      if (book.imageLinks) {
+        // Prefer larger images
+        metadata.coverUrl = book.imageLinks.extraLarge || 
+                           book.imageLinks.large || 
+                           book.imageLinks.medium || 
+                           book.imageLinks.thumbnail || 
+                           book.imageLinks.smallThumbnail;
+        
+        // Remove edge curl parameter and get larger image
+        if (metadata.coverUrl) {
+          metadata.coverUrl = metadata.coverUrl.replace('&edge=curl', '');
+          // Try to get larger version by modifying zoom parameter
+          metadata.coverUrl = metadata.coverUrl.replace('zoom=1', 'zoom=3');
+        }
+      }
+      
+      return res.json(metadata);
+    }
+    
+    // Try Open Library API as fallback - try both ISBN formats
+    let openLibResponse = await axios.get(
+      `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&jscmd=data&format=json`,
+      { timeout: 5000 }
+    );
+    
+    let openLibData = openLibResponse.data[`ISBN:${isbn}`];
+    
+    // If no results with original ISBN, try without hyphens
+    if (!openLibData) {
+      openLibResponse = await axios.get(
+        `https://openlibrary.org/api/books?bibkeys=ISBN:${isbnClean}&jscmd=data&format=json`,
+        { timeout: 5000 }
+      );
+      openLibData = openLibResponse.data[`ISBN:${isbnClean}`];
+    }
+    
+    if (openLibData) {
+      const metadata = {
+        success: true,
+        title: openLibData.title || '',
+        authors: openLibData.authors ? openLibData.authors.map(a => a.name).join(', ') : '',
+        description: openLibData.description || '',
+        publisher: openLibData.publishers ? openLibData.publishers[0].name : '',
+        publishedDate: openLibData.publish_date || '',
+        language: '',
+        pageCount: openLibData.number_of_pages || null,
+        categories: openLibData.subjects ? openLibData.subjects.map(s => s.name) : [],
+        coverUrl: null
+      };
+      
+      // Get cover from Open Library
+      if (openLibData.cover) {
+        metadata.coverUrl = openLibData.cover.large || openLibData.cover.medium || openLibData.cover.small;
+      }
+      
+      return res.json(metadata);
+    }
+    
+    res.json({ success: false, message: 'Keine Metadaten gefunden' });
+  } catch (error) {
+    console.error('Error fetching metadata:', error);
+    res.status(500).json({ success: false, error: 'Fehler beim Abrufen der Metadaten' });
+  }
+});
+
+app.post('/api/metadata/search', authenticateToken, async (req, res) => {
+  const { title, author } = req.body;
+  
+  if (!title) {
+    return res.status(400).json({ error: 'Titel ist erforderlich' });
+  }
+  
+  try {
+    // Build search query
+    let query = title;
+    if (author) {
+      query += `+inauthor:${author}`;
+    }
+    
+    // Search using Google Books API
+    const googleResponse = await axios.get(
+      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=10`,
+      { timeout: 5000 }
+    );
+    
+    const results = [];
+    
+    if (googleResponse.data.items) {
+      for (const item of googleResponse.data.items) {
+        const book = item.volumeInfo;
+        
+        // Get the best available cover image
+        let coverUrl = null;
+        if (book.imageLinks) {
+          coverUrl = book.imageLinks.extraLarge || 
+                    book.imageLinks.large || 
+                    book.imageLinks.medium || 
+                    book.imageLinks.thumbnail || 
+                    book.imageLinks.smallThumbnail;
+          
+          if (coverUrl) {
+            coverUrl = coverUrl.replace('&edge=curl', '');
+            coverUrl = coverUrl.replace('zoom=1', 'zoom=3');
+          }
+        }
+        
+        results.push({
+          title: book.title || '',
+          authors: book.authors ? book.authors.join(', ') : '',
+          description: book.description || '',
+          publisher: book.publisher || '',
+          publishedDate: book.publishedDate || '',
+          language: book.language || '',
+          pageCount: book.pageCount || null,
+          categories: book.categories || [],
+          isbn: book.industryIdentifiers ? 
+                book.industryIdentifiers.find(id => id.type === 'ISBN_13' || id.type === 'ISBN_10')?.identifier : '',
+          coverUrl: coverUrl
+        });
+      }
+    }
+    
+    res.json({ results });
+  } catch (error) {
+    console.error('Error searching metadata:', error);
+    res.status(500).json({ error: 'Fehler bei der Metadatensuche' });
+  }
+});
+
+// Update book metadata with optional cover download
+app.put('/api/books/:id/metadata', authenticateToken, async (req, res) => {
+  const bookId = req.params.id;
+  const { title, author, description, publisher, publishedDate, language, coverUrl } = req.body;
+  
+  try {
+    // First check if book exists and user has permission
+    const book = await database.getBookById(bookId);
+    if (!book) {
+      return res.status(404).json({ error: 'Buch nicht gefunden' });
+    }
+    
+    // Check permission (admin or owner)
+    if (req.user.role !== 'admin' && book.uploaded_by !== req.user.id) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diese Aktion' });
+    }
+    
+    // Prepare update data
+    const updateData = {
+      title: title || book.title,
+      author: author || book.author,
+      description: description || book.description
+    };
+    
+    // If a cover URL is provided, download and save it
+    if (coverUrl) {
+      try {
+        const coverResponse = await axios.get(coverUrl, {
+          responseType: 'arraybuffer',
+          timeout: 10000
+        });
+        
+        // Generate filename for cover
+        const timestamp = Date.now();
+        const randomNum = Math.floor(Math.random() * 1000000000);
+        const coverExtension = coverUrl.includes('.png') ? 'png' : 'jpg';
+        const coverFilename = `${timestamp}-${randomNum}-cover.${coverExtension}`;
+        const coverPath = path.join(__dirname, './uploads', coverFilename);
+        
+        // Save cover image
+        await fs.writeFile(coverPath, Buffer.from(coverResponse.data));
+        
+        // Update book with new cover
+        updateData.cover_image = coverFilename;
+        updateData.cover_path = coverPath;
+      } catch (coverError) {
+        console.error('Error downloading cover:', coverError);
+        // Continue without cover if download fails
+      }
+    }
+    
+    // Update book in database
+    const success = await database.updateBook(bookId, updateData);
+    
+    if (success) {
+      res.json({ message: 'Metadaten erfolgreich aktualisiert' });
+    } else {
+      res.status(500).json({ error: 'Fehler beim Aktualisieren der Metadaten' });
+    }
+  } catch (error) {
+    console.error('Error updating metadata:', error);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren der Metadaten' });
+  }
+});
+
 // Translation API - Get categories with translations
 app.get('/api/categories/translated', authenticateToken, async (req, res) => {
   try {
@@ -1245,6 +1542,49 @@ app.delete('/api/backup/:filename', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error deleting backup:', error);
     res.status(500).json({ error: 'Fehler beim Löschen des Backups' });
+  }
+});
+
+// Proxy for cover images to bypass CORS
+app.get('/api/cover-proxy', async (req, res) => {
+  const { url } = req.query;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL parameter required' });
+  }
+  
+  // Validate URL is from trusted sources
+  const allowedHosts = [
+    'books.google.com',
+    'covers.openlibrary.org'
+  ];
+  
+  try {
+    const urlObj = new URL(url);
+    if (!allowedHosts.includes(urlObj.hostname)) {
+      return res.status(403).json({ error: 'URL not allowed' });
+    }
+    
+    const response = await axios.get(url, {
+      responseType: 'stream',
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Lectoria-BookManager/1.0'
+      }
+    });
+    
+    // Set appropriate headers
+    res.set({
+      'Content-Type': response.headers['content-type'] || 'image/jpeg',
+      'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+      'Access-Control-Allow-Origin': '*'
+    });
+    
+    response.data.pipe(res);
+    
+  } catch (error) {
+    console.error('Cover proxy error:', error.message);
+    res.status(404).send('Cover image not found');
   }
 });
 

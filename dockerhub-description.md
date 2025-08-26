@@ -30,9 +30,10 @@
 
 ### 🎨 **Modern UI/UX**
 - Beautiful dark mode with smooth transitions
-- Multilingual support (English/German)
+- **14 Languages Supported**: EN, DE, FR, ES, IT, PT, NL, RU, PL, TR, ZH, JA, KO, AR
 - Material Design components and icons
 - Responsive design for all devices
+- Localized date formatting for all languages
 
 ### 🏠 **NAS & Home Server Ready**
 - Optimized for ZimaOS, Synology, QNAP

@@ -23,13 +23,17 @@ import {
   Category as CategoryIcon,
   Image,
   CheckCircle,
+  Search,
 } from '@mui/icons-material';
 import api from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function EnhancedBookUpload() {
+  const { t } = useLanguage();
   const [file, setFile] = useState(null);
   const [coverImage, setCoverImage] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
+  const [coverUrlFromISBN, setCoverUrlFromISBN] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -43,6 +47,8 @@ function EnhancedBookUpload() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [isbnQuery, setIsbnQuery] = useState('');
+  const [loadingMetadata, setLoadingMetadata] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -53,7 +59,48 @@ function EnhancedBookUpload() {
       const response = await api.get('/api/categories');
       setCategories(response.data);
     } catch (err) {
-      console.error('Fehler beim Laden der Kategorien:', err);
+      console.error('Error loading categories:', err);
+    }
+  };
+
+  const handleIsbnSearch = async () => {
+    if (!isbnQuery.trim()) {
+      setError('Bitte geben Sie eine ISBN ein');
+      return;
+    }
+
+    try {
+      setLoadingMetadata(true);
+      setError('');
+      const response = await api.post(`/api/metadata/isbn/${isbnQuery.trim()}`);
+      
+      if (response.data.success) {
+        // Format date for display
+        let formattedDate = response.data.publishedDate || '';
+        
+        setFormData({
+          title: response.data.title || '',
+          author: response.data.authors || '',
+          description: response.data.description || '',
+          type: formData.type, // Keep the selected type
+          category_id: formData.category_id, // Keep the selected category
+        });
+        
+        // If cover URL is found, save it for later download and create proxy URL for preview
+        if (response.data.coverUrl) {
+          setCoverUrlFromISBN(response.data.coverUrl);
+          setCoverPreview(`/api/cover-proxy?url=${encodeURIComponent(response.data.coverUrl)}`);
+        }
+        
+        setSuccess('Metadaten via ISBN gefunden!');
+      } else {
+        setError(response.data.message || 'Keine Metadaten für diese ISBN gefunden');
+      }
+    } catch (err) {
+      console.error('Error searching ISBN:', err);
+      setError('Fehler bei der ISBN-Suche');
+    } finally {
+      setLoadingMetadata(false);
     }
   };
 
@@ -83,12 +130,12 @@ function EnhancedBookUpload() {
     const fileExtension = selectedFile.name.toLowerCase().substr(selectedFile.name.lastIndexOf('.'));
     
     if (!validTypes.includes(selectedFile.type) && !validExtensions.includes(fileExtension)) {
-      setError('Nur PDF und EPUB Dateien sind erlaubt');
+      setError(t('upload.supportedFormats'));
       return;
     }
 
     if (selectedFile.size > 70 * 1024 * 1024) {
-      setError('Datei ist zu groß (max. 70MB)');
+      setError(t('upload.supportedFormats'));
       return;
     }
 
@@ -108,12 +155,12 @@ function EnhancedBookUpload() {
       const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
       
       if (!validTypes.includes(selectedFile.type)) {
-        setError('Nur JPG, PNG und WebP Bilder sind erlaubt');
+        setError('JPG, PNG, WebP (max. 5MB)');
         return;
       }
 
       if (selectedFile.size > 5 * 1024 * 1024) {
-        setError('Bild ist zu groß (max. 5MB)');
+        setError('JPG, PNG, WebP (max. 5MB)');
         return;
       }
 
@@ -133,12 +180,12 @@ function EnhancedBookUpload() {
     e.preventDefault();
     
     if (!file) {
-      setError('Bitte wählen Sie eine Datei aus');
+      setError(t('upload.selectFiles'));
       return;
     }
 
     if (!formData.title.trim()) {
-      setError('Titel ist erforderlich');
+      setError(t('upload.titleLabel') + ' ' + t('admin.required').toLowerCase());
       return;
     }
 
@@ -146,9 +193,12 @@ function EnhancedBookUpload() {
     uploadData.append('file', file);
     if (coverImage) {
       uploadData.append('cover', coverImage);
+    } else if (coverUrlFromISBN) {
+      // Send the cover URL to be downloaded by backend
+      uploadData.append('coverUrl', coverUrlFromISBN);
     }
     uploadData.append('title', formData.title);
-    uploadData.append('author', formData.author || 'Unbekannt');
+    uploadData.append('author', formData.author || t('dashboard.unknownAuthor'));
     uploadData.append('description', formData.description);
     uploadData.append('type', formData.type);
     if (formData.category_id) {
@@ -167,11 +217,13 @@ function EnhancedBookUpload() {
         },
       });
 
-      setSuccess('Buch erfolgreich hochgeladen!');
+      setSuccess(t('upload.success'));
       // Reset form
       setFile(null);
       setCoverImage(null);
       setCoverPreview(null);
+      setCoverUrlFromISBN(null);
+      setIsbnQuery('');
       setFormData({
         title: '',
         author: '',
@@ -181,7 +233,7 @@ function EnhancedBookUpload() {
       });
       setUploadProgress(0);
     } catch (err) {
-      setError(err.response?.data?.error || 'Upload fehlgeschlagen');
+      setError(err.response?.data?.error || t('upload.error'));
     } finally {
       setUploading(false);
     }
@@ -191,10 +243,10 @@ function EnhancedBookUpload() {
     <Container maxWidth="md">
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          Buch hochladen
+          {t('upload.title')}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Laden Sie PDF oder EPUB Dateien hoch und fügen Sie Metadaten hinzu
+          {t('upload.supportedFormats')}
         </Typography>
       </Box>
 
@@ -244,30 +296,58 @@ function EnhancedBookUpload() {
                     {(file.size / 1024 / 1024).toFixed(2)} MB
                   </Typography>
                   <Button sx={{ mt: 2 }}>
-                    Andere Datei wählen
+                    {t('upload.selectFiles')}
                   </Button>
                 </Box>
               ) : (
                 <Box>
                   <CloudUpload sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
                   <Typography variant="h6" gutterBottom>
-                    Datei hierher ziehen
+                    {t('upload.dragDrop')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    oder klicken zum Auswählen
+                    {t('upload.selectFiles')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    PDF oder EPUB • Max. 70MB
+                    {t('upload.supportedFormats')}
                   </Typography>
                 </Box>
               )}
             </Box>
           </Box>
 
+          {/* ISBN Search Section */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              ISBN-Suche ({t('admin.optional')})
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="ISBN-10 oder ISBN-13"
+                value={isbnQuery}
+                onChange={(e) => setIsbnQuery(e.target.value)}
+                disabled={loadingMetadata}
+                sx={{ flex: 1, maxWidth: 300 }}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<Search />}
+                onClick={handleIsbnSearch}
+                disabled={loadingMetadata || !isbnQuery.trim()}
+              >
+                {loadingMetadata ? 'Suche...' : 'Metadaten suchen'}
+              </Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Geben Sie eine ISBN ein, um Titel, Autor und Cover automatisch zu laden
+            </Typography>
+          </Box>
+
           {/* Cover Image Upload */}
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle1" gutterBottom>
-              Cover-Bild (optional)
+              Cover ({t('admin.optional')})
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Button
@@ -275,7 +355,7 @@ function EnhancedBookUpload() {
                 component="label"
                 startIcon={<Image />}
               >
-                Cover hochladen
+                {t('upload.selectFiles')}
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
@@ -301,7 +381,7 @@ function EnhancedBookUpload() {
           {/* Metadata Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
-              label="Titel"
+              label={t('upload.titleLabel')}
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
@@ -309,14 +389,14 @@ function EnhancedBookUpload() {
             />
 
             <TextField
-              label="Autor"
+              label={t('upload.authorLabel')}
               value={formData.author}
               onChange={(e) => setFormData({ ...formData, author: e.target.value })}
               fullWidth
             />
 
             <TextField
-              label="Beschreibung"
+              label={t('upload.descriptionLabel')}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               multiline
@@ -326,36 +406,36 @@ function EnhancedBookUpload() {
 
             <Box sx={{ display: 'flex', gap: 2 }}>
               <FormControl fullWidth>
-                <InputLabel>Typ</InputLabel>
+                <InputLabel>{t('upload.typeLabel')}</InputLabel>
                 <Select
                   value={formData.type}
-                  label="Typ"
+                  label={t('upload.typeLabel')}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 >
                   <MenuItem value="book">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Book />
-                      Buch
+                      {t('upload.typeBook')}
                     </Box>
                   </MenuItem>
                   <MenuItem value="magazine">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Article />
-                      Magazin
+                      {t('upload.typeMagazine')}
                     </Box>
                   </MenuItem>
                 </Select>
               </FormControl>
 
               <FormControl fullWidth>
-                <InputLabel>Kategorie</InputLabel>
+                <InputLabel>{t('dashboard.category')}</InputLabel>
                 <Select
                   value={formData.category_id}
-                  label="Kategorie"
+                  label={t('dashboard.category')}
                   onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                 >
                   <MenuItem value="">
-                    <em>Keine Kategorie</em>
+                    <em>{t('dashboard.allCategories')}</em>
                   </MenuItem>
                   {categories.map((category) => (
                     <MenuItem key={category.id} value={category.id}>
@@ -387,7 +467,7 @@ function EnhancedBookUpload() {
           {uploading && (
             <Box sx={{ mt: 3 }}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Wird hochgeladen... {uploadProgress}%
+                {t('upload.uploading')} {uploadProgress}%
               </Typography>
               <LinearProgress variant="determinate" value={uploadProgress} />
             </Box>
@@ -411,7 +491,7 @@ function EnhancedBookUpload() {
                 setSuccess('');
               }}
             >
-              Zurücksetzen
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -419,7 +499,7 @@ function EnhancedBookUpload() {
               disabled={!file || !formData.title || uploading}
               startIcon={<CloudUpload />}
             >
-              Hochladen
+              {t('upload.uploadButton')}
             </Button>
           </Box>
         </form>
@@ -428,13 +508,13 @@ function EnhancedBookUpload() {
       {/* Info Box */}
       <Paper elevation={1} sx={{ p: 3, mt: 3, bgcolor: 'info.lighter' }}>
         <Typography variant="subtitle2" gutterBottom>
-          Hinweise zum Upload:
+          {t('upload.uploadHints')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          • Unterstützte Formate: PDF und EPUB<br />
-          • Maximale Dateigröße: 70MB<br />
-          • Cover-Bilder verbessern die Darstellung in der Bibliothek<br />
-          • Kategorien helfen bei der Organisation Ihrer Sammlung
+          • {t('upload.hintFormats')}<br />
+          • {t('upload.hintSize')}<br />
+          • {t('upload.hintCover')}<br />
+          • {t('upload.hintCategories')}
         </Typography>
       </Paper>
     </Container>
