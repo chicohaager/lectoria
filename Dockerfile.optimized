@@ -1,22 +1,27 @@
-# Multi-stage Docker build for Lectoria BookManager
-# OPTIMIZED VERSION AVAILABLE: Use Dockerfile.optimized for better build performance
+# Optimized multi-stage Docker build for Lectoria BookManager
 FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files for backend
+# Copy package files for both backend and frontend
 COPY package*.json ./
+COPY frontend/package*.json ./frontend/
 
-# Install backend dependencies
-RUN npm ci --only=production
+# Install backend dependencies with timeout and reduced concurrency
+RUN npm ci --only=production --loglevel=error --prefer-offline --no-audit --maxsockets=1
 
-# Copy all source code first
+# Install frontend dependencies separately with optimizations
+WORKDIR /app/frontend
+RUN npm ci --loglevel=error --prefer-offline --no-audit --maxsockets=1
+
+# Copy source code
+WORKDIR /app
 COPY . .
 
-# Install frontend dependencies and build
+# Build frontend with memory limit
 WORKDIR /app/frontend
-RUN npm ci && npm run build
+RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build
 
 # Go back to app directory
 WORKDIR /app
@@ -39,7 +44,7 @@ WORKDIR /app
 
 # Copy package files and install production dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --only=production --loglevel=error --prefer-offline --no-audit && npm cache clean --force
 
 # Copy application from builder
 COPY --from=builder --chown=lectoria:nodejs /app .

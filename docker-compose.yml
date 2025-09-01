@@ -26,7 +26,9 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.optimized
+      args:
+        - NODE_OPTIONS=--max-old-space-size=1024
     container_name: lectoria_backend
     environment:
       NODE_ENV: production

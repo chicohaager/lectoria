@@ -2,7 +2,11 @@ version: '3.8'
 
 services:
   lectoria:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.optimized
+      args:
+        - NODE_OPTIONS=--max-old-space-size=1024
     container_name: lectoria-prod
     ports:
       - "80:3000"
