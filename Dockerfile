@@ -1,4 +1,5 @@
 # Multi-stage Docker build for Lectoria BookManager
+# OPTIMIZED VERSION AVAILABLE: Use Dockerfile.optimized for better build performance
 FROM node:18-alpine AS builder
 
 # Set working directory
