@@ -48,7 +48,7 @@
 
 ### 🐳 **Easy Deployment**
 - **Docker containerization** for simple deployment
-- **PostgreSQL database** for reliability and performance
+- **SQLite database** for simplicity and portability
 - **Environment-based configuration** with secure defaults
 - **Production-ready** with security best practices
 - **Automatic database migrations** and setup
@@ -63,7 +63,7 @@ docker run -d -p 3000:3000 \
   -v lectoria_uploads:/app/uploads \
   chicohaager/lectoria:latest
 
-# Full setup with PostgreSQL
+# Full setup with Docker Compose
 docker-compose up -d
 ```
 
@@ -81,7 +81,7 @@ docker-compose up -d
 
 ## 💡 Technical Highlights
 
-- **Backend**: Node.js, Express.js, PostgreSQL
+- **Backend**: Node.js, Express.js, SQLite
 - **Frontend**: React, Material-UI, Progressive Web App
 - **Security**: JWT authentication, bcrypt hashing, rate limiting
 - **File Handling**: Multer with size limits and type validation

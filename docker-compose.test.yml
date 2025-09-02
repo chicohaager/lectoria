@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  lectoria:
+    image: lectoria:2.4
+    container_name: lectoria-test
+    ports:
+      - "3001:3000"  # Using port 3001 to avoid conflicts
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-test-secret-key-change-me}
+      - PORT=3000
+      - DB_PATH=/app/data/lectoria.db
+    volumes:
+      - ./test-data:/app/data
+      - ./test-uploads:/app/uploads
+      - ./test-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - lectoria-test-network
+
+networks:
+  lectoria-test-network:
+    driver: bridge
