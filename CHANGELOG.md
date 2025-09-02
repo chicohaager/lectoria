@@ -14,9 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cache Management**: Smart caching strategies for better performance
 
 ### 🔄 Changed - Database Migration
-- **PostgreSQL Migration**: Complete migration from SQLite to PostgreSQL
-- **Docker Setup**: Updated Docker Compose to use PostgreSQL container
-- **Documentation**: Updated all docs to reflect PostgreSQL usage
+- **SQLite Database**: Simplified deployment with embedded SQLite database
+- **Docker Setup**: Streamlined Docker configuration without external database
+- **Documentation**: Updated all docs to reflect SQLite usage
 - **Build Process**: Improved Dockerfile for proper frontend asset compilation
 
 ### 🐛 Fixed
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker Build**: Corrected build order for frontend assets
 
 ### ❌ Removed
-- **SQLite References**: Removed all SQLite mentions from documentation
+- **PostgreSQL References**: Removed all PostgreSQL dependencies and configuration
 - **Legacy Files**: Cleaned up old database references
 
 ## [2.3.0] - 2025-08-25
@@ -95,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Future-Ready**: Easy addition of new languages without code changes
 
 ### 🔒 Technical Improvements
-- **PostgreSQL Optimization**: Enhanced query performance for translations
+- **SQLite Optimization**: Optimized queries for embedded database
 - **API Security**: Translation management restricted to admin users
 - **Error Handling**: Comprehensive error handling for translation failures
 - **Memory Efficiency**: Optimized translation loading and caching

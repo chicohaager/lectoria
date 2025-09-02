@@ -1,4 +1,4 @@
-// backend_server.js - PostgreSQL version
+// backend_server.js - SQLite version
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -9,7 +9,7 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs-extra');
 const { v4: uuidv4 } = require('uuid');
 
-// Import PostgreSQL database
+// Import SQLite database
 const database = require('./database');
 const axios = require('axios');
 const archiver = require('archiver');
@@ -100,8 +100,8 @@ app.use((req, res, next) => {
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.com'] // Replace with your actual domain
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    ? process.env.FRONTEND_URL || false // Set FRONTEND_URL in production
+    : true, // Allow all origins in development
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' })); // Prevent large JSON payloads
@@ -111,7 +111,7 @@ app.use('/uploads', express.static(path.join(__dirname, './uploads')));
 // Initialize Database
 (async () => {
   await database.initializeDatabase();
-  console.log('✅ PostgreSQL Database initialisiert');
+  console.log('✅ SQLite Database initialisiert');
 })();
 
 // File Upload Configuration
@@ -366,7 +366,7 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
       user: { id: userId, username, email, role: 'user' }
     });
   } catch (error) {
-    if (error.code === '23505') { // PostgreSQL unique constraint violation
+    if (error.code === 'SQLITE_CONSTRAINT' || error.message.includes('UNIQUE')) { // SQLite unique constraint violation
       return res.status(400).json({ error: 'Benutzername oder E-Mail bereits vorhanden' });
     }
     console.error('Registration error:', error);
@@ -915,7 +915,7 @@ app.post('/api/categories', authenticateToken, async (req, res) => {
       icon: icon || 'folder' 
     });
   } catch (error) {
-    if (error.code === '23505') { // PostgreSQL unique constraint violation
+    if (error.code === 'SQLITE_CONSTRAINT' || error.message.includes('UNIQUE')) { // SQLite unique constraint violation
       return res.status(400).json({ error: 'Kategorie existiert bereits' });
     }
     console.error('Error creating category:', error);
@@ -944,7 +944,7 @@ app.put('/api/categories/:id', authenticateToken, async (req, res) => {
     
     res.json({ message: 'Kategorie erfolgreich aktualisiert' });
   } catch (error) {
-    if (error.code === '23505') { // PostgreSQL unique constraint violation
+    if (error.code === 'SQLITE_CONSTRAINT' || error.message.includes('UNIQUE')) { // SQLite unique constraint violation
       return res.status(400).json({ error: 'Kategoriename existiert bereits' });
     }
     console.error('Error updating category:', error);
@@ -1655,5 +1655,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Book Manager Server läuft auf Port ${PORT}`);
   console.log(`📚 Zugriff über: http://localhost:${PORT}`);
   console.log(`👤 Standard Admin: admin / admin123`);
-  console.log(`🗄️  Datenbank: PostgreSQL`);
+  console.log(`🗄️  Datenbank: SQLite`);
 });

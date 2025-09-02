@@ -1,28 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16
-    container_name: lectoria_postgres
-    environment:
-      POSTGRES_DB: lectoria
-      POSTGRES_USER: lectoria_user
-      POSTGRES_PASSWORD: lectoria_secure_2024
-      PGDATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/pgdata
-      - ./init-db:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lectoria_user -d lectoria"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-    networks:
-      - lectoria_network
-
   backend:
     build:
       context: .
@@ -32,45 +10,21 @@ services:
     container_name: lectoria_backend
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://lectoria_user:lectoria_secure_2024@postgres:5432/lectoria
+      DB_PATH: /app/data/lectoria.db
       JWT_SECRET: ${JWT_SECRET:-lectoria_jwt_secret_change_in_production_2024}
       PORT: 3000
     volumes:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
+      - ./data:/app/data  # SQLite database directory
     ports:
       - "3000:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
     networks:
       - lectoria_network
-
-  # Optional: pgAdmin for database management (dev profile)
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: lectoria_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@lectoria.local
-      PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    ports:
-      - "8080:80"
-    depends_on:
-      - postgres
-    restart: unless-stopped
-    networks:
-      - lectoria_network
-    profiles:
-      - dev
 
 volumes:
-  postgres_data:
-    driver: local
-  pgadmin_data:
+  lectoria_data:
     driver: local
 
 networks:
