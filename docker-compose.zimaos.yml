@@ -45,9 +45,9 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      # JWT_SECRET automatically generated and read from Docker Secrets
+      # JWT_SECRET automatically generated and read from secrets volume
       # No manual configuration required - always secure auto-generation
-      - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - JWT_SECRET_FILE=/app/secrets/jwt_secret
       - PORT=3000
       - DB_PATH=/app/data/lectoria.db
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
@@ -72,8 +72,6 @@ services:
         source: /DATA/AppData/lectoria/secrets
         target: /app/secrets
         read_only: true
-    secrets:
-      - jwt_secret
     restart: unless-stopped
     deploy:
       resources:
@@ -90,16 +88,15 @@ services:
       - /var/tmp:noexec,nosuid,size=50m
     healthcheck:
       test: |
-        if [ -f /run/secrets/jwt_secret ]; then
-          JWT_SECRET_VALUE=$$(cat /run/secrets/jwt_secret)
-        elif [ -f /app/secrets/jwt_secret ]; then
+        if [ -f /app/secrets/jwt_secret ]; then
           JWT_SECRET_VALUE=$$(cat /app/secrets/jwt_secret)
         else
-          JWT_SECRET_VALUE="$$JWT_SECRET"
+          echo "🚨 SECURITY WARNING: JWT_SECRET file not found!"
+          exit 1
         fi
         
-        if [ -z "$$JWT_SECRET_VALUE" ] || [ "$$JWT_SECRET_VALUE" = "lectoria-zimaos-jwt-secret-2024-change-me" ]; then
-          echo "🚨 SECURITY WARNING: Using default or empty JWT_SECRET!"
+        if [ -z "$$JWT_SECRET_VALUE" ]; then
+          echo "🚨 SECURITY WARNING: JWT_SECRET is empty!"
           exit 1
         fi
         
@@ -168,11 +165,7 @@ services:
   #       max-size: "5m"
   #       max-file: "2"
 
-# Docker Secrets for enhanced security
-secrets:
-  jwt_secret:
-    file: /DATA/AppData/lectoria/secrets/jwt_secret
-
+# Networks configuration
 networks:
   lectoria-network:
     driver: bridge
