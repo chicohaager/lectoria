@@ -13,14 +13,12 @@ import {
   Select,
   MenuItem,
   LinearProgress,
-  Chip,
   Avatar,
 } from '@mui/material';
 import {
   CloudUpload,
   Book,
   Article,
-  Category as CategoryIcon,
   Image,
   CheckCircle,
   Search,
@@ -75,8 +73,8 @@ function EnhancedBookUpload() {
       const response = await api.post(`/api/metadata/isbn/${isbnQuery.trim()}`);
       
       if (response.data.success) {
-        // Format date for display
-        let formattedDate = response.data.publishedDate || '';
+        // Format date for display (reserved for future formatting)
+        // let formattedDate = response.data.publishedDate || '';
         
         setFormData({
           title: response.data.title || '',
@@ -94,11 +92,11 @@ function EnhancedBookUpload() {
         
         setSuccess('Metadaten via ISBN gefunden!');
       } else {
-        setError(response.data.message || 'Keine Metadaten für diese ISBN gefunden');
+        setError(response.data.message || 'No metadata found for this ISBN');
       }
     } catch (err) {
       console.error('Error searching ISBN:', err);
-      setError('Fehler bei der ISBN-Suche');
+      setError('Error searching ISBN');
     } finally {
       setLoadingMetadata(false);
     }
@@ -209,7 +207,7 @@ function EnhancedBookUpload() {
       setUploading(true);
       setUploadProgress(0);
       
-      const response = await api.post('/api/books/upload', uploadData, {
+      await api.post('/api/books/upload', uploadData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -336,11 +334,11 @@ function EnhancedBookUpload() {
                 onClick={handleIsbnSearch}
                 disabled={loadingMetadata || !isbnQuery.trim()}
               >
-                {loadingMetadata ? 'Suche...' : 'Metadaten suchen'}
+                {loadingMetadata ? t('upload.searching') : t('upload.searchMetadata')}
               </Button>
             </Box>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Geben Sie eine ISBN ein, um Titel, Autor und Cover automatisch zu laden
+              {t('upload.isbnHelpText')}
             </Typography>
           </Box>
 

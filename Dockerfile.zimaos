@@ -1,39 +1,45 @@
-# Professional Docker build for Lectoria BookManager
+# ZimaOS-optimized Docker build for Lectoria BookManager
 # Includes PUID/PGID support for proper file permissions
+
+# Build stage
 FROM node:18-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files for backend
+# Copy package files for both backend and frontend
 COPY package*.json ./
+COPY frontend/package*.json ./frontend/
 
-# Install backend dependencies
-RUN npm ci --only=production
+# Install backend dependencies with timeout and reduced concurrency
+RUN npm ci --only=production --loglevel=error --prefer-offline --no-audit --maxsockets=1
 
-# Copy all source code first
+# Install frontend dependencies separately with optimizations
+WORKDIR /app/frontend
+RUN npm ci --loglevel=error --prefer-offline --no-audit --maxsockets=1
+
+# Copy source code
+WORKDIR /app
 COPY . .
 
-# Install frontend dependencies and build
+# Build frontend with memory limit
 WORKDIR /app/frontend
-RUN npm ci && npm run build
+RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build
 
 # Go back to app directory
 WORKDIR /app
 
 # Create necessary directories
-RUN mkdir -p uploads data
+RUN mkdir -p uploads data logs
 
-# Production stage
+# Production stage with PUID/PGID support
 FROM node:18-alpine AS production
 
-# Install required packages for professional deployment
+# Install required packages for user management and health checks
 RUN apk add --no-cache \
     dumb-init \
     su-exec \
     shadow \
-    wget \
-    tzdata
+    wget
 
 # Create default app user and group (will be modified by entrypoint)
 RUN addgroup -g 1001 -S nodejs && \
@@ -44,12 +50,12 @@ WORKDIR /app
 
 # Copy package files and install production dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --only=production --loglevel=error --prefer-offline --no-audit && npm cache clean --force
 
 # Copy application from builder
 COPY --from=builder --chown=1001:1001 /app .
 
-# Copy entrypoint script for PUID/PGID support
+# Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
@@ -58,12 +64,10 @@ RUN mkdir -p uploads data logs frontend/build public && \
     chown -R 1001:1001 /app && \
     chmod -R 755 /app
 
-# Don't switch to non-root here - entrypoint will handle this
-
 # Expose port
 EXPOSE 3000
 
-# Health check with wget (more reliable)
+# Health check with wget (compatible with entrypoint)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 

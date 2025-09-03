@@ -23,7 +23,6 @@ import {
   Brightness7,
   SettingsBrightness,
   Settings,
-  Translate,
 } from '@mui/icons-material';
 import { ColorModeContext } from '../index';
 import { useLanguage } from '../contexts/LanguageContext';

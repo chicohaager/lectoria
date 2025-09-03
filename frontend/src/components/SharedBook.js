@@ -16,7 +16,6 @@ import {
 import {
   MenuBook,
   Article,
-  Download,
   Visibility,
   CloudDownload,
 } from '@mui/icons-material';
@@ -31,12 +30,13 @@ function SharedBook() {
 
   useEffect(() => {
     loadSharedBook();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const loadSharedBook = async () => {
     // Validate token format (basic check)
     if (!token || token.length < 10) {
-      setError('Ungültiger Freigabe-Link');
+      setError('Invalid share link');
       setLoading(false);
       return;
     }
@@ -48,11 +48,11 @@ function SharedBook() {
       if (err.response?.status === 404) {
         setError('Freigabe-Link nicht gefunden oder inaktiv');
       } else if (err.response?.status === 410) {
-        setError('Freigabe-Link ist abgelaufen');
+        setError('Share link has expired');
       } else if (err.response?.status === 400) {
-        setError('Ungültiger Freigabe-Link');
+        setError('Invalid share link');
       } else {
-        setError('Fehler beim Laden des geteilten Buchs');
+        setError('Error loading shared book');
       }
     } finally {
       setLoading(false);

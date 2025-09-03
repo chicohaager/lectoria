@@ -2,7 +2,14 @@
 
 ## Overview
 
-**Lectoria** is a modern, full-stack digital book and magazine management system built with Node.js and React. Upload, organize, and share your PDF and EPUB files with secure authentication, beautiful cover images, and advanced sharing capabilities.
+**Lectoria** is a professional, full-stack digital library management system built with Node.js and React. Upload, organize, and share your PDF and EPUB files with enterprise-grade security, beautiful cover images, and advanced sharing capabilities.
+
+## 🚀 **Professional Docker Features**
+- ✅ **PUID/PGID Support** - Automatic file permission management  
+- ✅ **Init System** - Proper signal handling with dumb-init
+- ✅ **Health Checks** - Built-in monitoring and self-healing
+- ✅ **SQLite Database** - No external dependencies required
+- ✅ **Production Ready** - Enterprise security and reliability
 
 **🔗 GitHub Repository:** [chicohaager/lectoria](https://github.com/chicohaager/lectoria)
 
@@ -36,9 +43,10 @@
 - Localized date formatting for all languages
 
 ### 🏠 **NAS & Home Server Ready**
-- Optimized for ZimaOS, Synology, QNAP
+- **PUID/PGID Support** - Automatic permission management
+- Optimized for ZimaOS, Synology, QNAP, Unraid
 - Persistent storage with Docker volumes
-- Low resource usage, perfect for home labs
+- Low resource usage, perfect for home labs  
 - Health checks and auto-restart capabilities
 
 ---
@@ -47,15 +55,19 @@
 
 ### Simple Setup (No External Database Required!)
 ```bash
-# Run Lectoria with embedded SQLite database
+# Run Lectoria with embedded SQLite database and proper permissions
 docker run -d \
   --name lectoria \
   -p 3000:3000 \
+  -e PUID=1000 \
+  -e PGID=1000 \
+  -e JWT_SECRET="your-secret-key-here" \
   -v lectoria-data:/app/data \
   -v lectoria-uploads:/app/uploads \
-  -e JWT_SECRET="your-secret-key-here" \
   chicohaager/lectoria:latest
 ```
+
+**PUID/PGID Support**: Set `PUID` and `PGID` to your user/group IDs for proper file permissions (run `id` to find yours).
 
 ### Docker Compose (Recommended)
 ```yaml

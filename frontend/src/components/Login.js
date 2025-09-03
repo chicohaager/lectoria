@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
   Container,
@@ -39,6 +39,21 @@ function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [registrationAllowed, setRegistrationAllowed] = useState(true);
+
+  useEffect(() => {
+    const checkRegistrationStatus = async () => {
+      try {
+        const response = await api.get('/api/auth/registration-status');
+        setRegistrationAllowed(response.data.allowed);
+      } catch (err) {
+        console.error('Failed to check registration status:', err);
+        setRegistrationAllowed(false); // Default to false on error
+      }
+    };
+
+    checkRegistrationStatus();
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -60,7 +75,7 @@ function Login({ onLogin }) {
       }
     } catch (err) {
       console.error('Login error:', err); // Debug log
-      setError(err.response?.data?.error || 'Anmeldung fehlgeschlagen');
+      setError(err.response?.data?.error || t('login.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -75,7 +90,7 @@ function Login({ onLogin }) {
       const response = await api.post('/api/auth/register', registerForm);
       onLogin(response.data.user, response.data.token);
     } catch (err) {
-      setError(err.response?.data?.error || 'Registrierung fehlgeschlagen');
+      setError(err.response?.data?.error || t('login.registrationFailed'));
     } finally {
       setLoading(false);
     }
@@ -128,7 +143,7 @@ function Login({ onLogin }) {
               Lectoria
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Ihre digitale Bibliothek für Bücher und Magazine
+              {t('login.subtitle')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontSize: '0.75rem' }}>
               by <a href="https://github.com/chicohaager" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>@chicohaager</a>
@@ -139,7 +154,7 @@ function Login({ onLogin }) {
 
           <Tabs value={tab} onChange={(e, newValue) => setTab(newValue)} centered>
             <Tab label={t('login.title')} />
-            <Tab label={t('login.registerTitle')} />
+            {registrationAllowed && <Tab label={t('login.registerTitle')} />}
           </Tabs>
 
           {error && (
@@ -181,54 +196,56 @@ function Login({ onLogin }) {
                 {loading ? `${t('login.loginButton')}...` : t('login.loginButton')}
               </Button>
               <Typography variant="body2" color="text.secondary" textAlign="center">
-                Standard Admin: admin / admin123
+                {t('login.defaultCredentials')}
               </Typography>
             </Box>
           </TabPanel>
 
-          <TabPanel value={tab} index={1}>
-            <Box component="form" onSubmit={handleRegister}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                label={t('login.username')}
-                autoComplete="username"
-                value={registerForm.username}
-                onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                label={t('login.email')}
-                type="email"
-                autoComplete="email"
-                value={registerForm.email}
-                onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                label={t('login.password')}
-                type="password"
-                autoComplete="new-password"
-                value={registerForm.password}
-                onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-              />
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2 }}
-                disabled={loading}
-                size="large"
-              >
-                {loading ? `${t('login.registerButton')}...` : t('login.registerButton')}
-              </Button>
-            </Box>
-          </TabPanel>
+          {registrationAllowed && (
+            <TabPanel value={tab} index={1}>
+              <Box component="form" onSubmit={handleRegister}>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  label={t('login.username')}
+                  autoComplete="username"
+                  value={registerForm.username}
+                  onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  label={t('login.email')}
+                  type="email"
+                  autoComplete="email"
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  label={t('login.password')}
+                  type="password"
+                  autoComplete="new-password"
+                  value={registerForm.password}
+                  onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 3, mb: 2 }}
+                  disabled={loading}
+                  size="large"
+                >
+                  {loading ? `${t('login.registerButton')}...` : t('login.registerButton')}
+                </Button>
+              </Box>
+            </TabPanel>
+          )}
         </Paper>
         
         {/* Password Change Dialog */}
