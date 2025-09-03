@@ -3,10 +3,10 @@ version: '3.8'
 services:
   lectoria:
     image: chicohaager/lectoria:latest
-    # Alternative: Build locally
+    # Alternative: Build locally (uses main Dockerfile with PUID/PGID support)
     # build:
     #   context: .
-    #   dockerfile: Dockerfile.optimized
+    #   dockerfile: Dockerfile
     #   args:
     #     - NODE_OPTIONS=--max-old-space-size=1024
     container_name: lectoria-zimaos
@@ -14,17 +14,28 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - JWT_SECRET=${JWT_SECRET:-change-me-lectoria-jwt-secret-zimaos-2024}
+      # JWT_SECRET - provide your own secret or use the generated one below
+      # Generate a secure secret: openssl rand -base64 64
+      - JWT_SECRET=${JWT_SECRET:-lectoria-zimaos-jwt-secret-2024-change-me}
       - PORT=3000
       - DB_PATH=/app/data/lectoria.db
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - MAX_FILE_SIZE=${MAX_FILE_SIZE:-70485760}
       - MAX_IMAGE_SIZE=${MAX_IMAGE_SIZE:-5242880}
+      # User/Group ID for proper file permissions
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
     volumes:
-      # ZimaOS persistent storage paths
-      - lectoria-data:/app/data
-      - lectoria-uploads:/app/uploads
-      - lectoria-logs:/app/logs
+      # ZimaOS persistent storage paths with explicit bind mounts
+      - type: bind
+        source: /DATA/AppData/lectoria/data
+        target: /app/data
+      - type: bind
+        source: /DATA/AppData/lectoria/uploads
+        target: /app/uploads
+      - type: bind
+        source: /DATA/AppData/lectoria/logs
+        target: /app/logs
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000", "||", "exit", "1"]
@@ -62,29 +73,6 @@ services:
   #     options:
   #       max-size: "5m"
   #       max-file: "2"
-
-volumes:
-  # Named volumes für bessere Portabilität
-  lectoria-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /DATA/AppData/lectoria/data
-      
-  lectoria-uploads:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /DATA/AppData/lectoria/uploads
-
-  lectoria-logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /DATA/AppData/lectoria/logs
 
 networks:
   lectoria-network:

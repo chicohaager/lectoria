@@ -34,7 +34,6 @@ import {
   TableRow,
   Paper,
   Tooltip,
-  Avatar,
   InputAdornment,
 } from '@mui/material';
 import {
@@ -44,17 +43,10 @@ import {
   Share,
   GridView,
   ViewList,
-  FilterList,
-  Category as CategoryIcon,
   Book,
   Article,
   Description,
-  GetApp,
-  Person,
-  CalendarToday,
-  Storage,
   Edit,
-  FileDownload,
   TableChart,
   QrCode,
 } from '@mui/icons-material';
@@ -104,6 +96,7 @@ function EnhancedDashboard() {
   useEffect(() => {
     loadBooks();
     loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, searchTerm, filterType, filterCategory]);
 
   const loadCategories = async () => {
@@ -338,12 +331,12 @@ function EnhancedDashboard() {
       setCsvExporting(true);
       setError('');
 
-      // Prepare filters for export
-      const filters = {
-        search: searchTerm,
-        type: filterType !== 'all' ? filterType : undefined,
-        category_id: filterCategory !== 'all' ? filterCategory : undefined
-      };
+      // Prepare filters for export (currently not used but may be needed for future filtering)
+      // const filters = {
+      //   search: searchTerm,
+      //   type: filterType !== 'all' ? filterType : undefined,
+      //   category_id: filterCategory !== 'all' ? filterCategory : undefined
+      // };
 
       // Download the CSV file directly with proper authentication
       const response = await api.get('/api/export/csv', {

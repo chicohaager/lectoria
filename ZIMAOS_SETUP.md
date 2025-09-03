@@ -29,11 +29,26 @@ mv .env.zimaos .env
 
 ### 3. Configure Environment
 
-Edit the `.env` file and **change the JWT_SECRET**:
+Edit the `.env` file and **configure settings** (optional):
 
 ```bash
 nano .env
-# Change: JWT_SECRET=your-very-secure-random-secret-key-here
+
+# JWT_SECRET: Auto-generated if not provided (LinuxServer.io pattern)
+# JWT_SECRET=your-custom-secret-key-here  # Optional
+
+# Set user/group IDs for proper permissions
+PUID=1000  # Your user ID (run 'id' to check)
+PGID=1000  # Your group ID (run 'id' to check)
+```
+
+**🔐 JWT_SECRET Auto-Generation**: If no JWT_SECRET is provided, Lectoria will automatically generate a secure 64-character secret and save it to persistent storage for reuse across container restarts.
+
+**Find your User/Group IDs:**
+```bash
+id
+# Output: uid=1000(username) gid=1000(groupname)
+# Use these numbers for PUID and PGID
 ```
 
 ### 4. Start Lectoria
@@ -53,10 +68,12 @@ docker-compose -f docker-compose.zimaos.yml up -d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `JWT_SECRET` | *change-me* | **MUST CHANGE** - JWT signing secret |
+| `JWT_SECRET` | *auto-generated* | JWT signing secret (auto-generated if not provided) |
 | `NODE_ENV` | production | Application environment |
 | `MAX_FILE_SIZE` | 70MB | Max PDF/EPUB file size |
 | `MAX_IMAGE_SIZE` | 5MB | Max cover image size |
+| `PUID` | 1000 | User ID for file permissions |
+| `PGID` | 1000 | Group ID for file permissions |
 
 ### Volume Mapping
 
@@ -101,7 +118,14 @@ docker-compose -f docker-compose.zimaos.yml down
 ### Container won't start
 - Check JWT_SECRET is set in .env file
 - Ensure directories have correct permissions
+- Verify PUID/PGID values are correct
 - Check available disk space
+
+### Permission issues
+- Set correct PUID/PGID in .env file
+- Check directory ownership: `ls -la /DATA/AppData/lectoria/`
+- Ensure your user can write to /DATA/AppData/lectoria
+- Restart container after changing PUID/PGID
 
 ### Can't login
 - Verify default admin credentials: admin / admin123
@@ -112,6 +136,11 @@ docker-compose -f docker-compose.zimaos.yml down
 - Increase memory if handling large files
 - Check ZimaOS system resources
 - Consider using SSD storage for database
+
+### File upload issues
+- Check file permissions in uploads directory
+- Verify PUID/PGID settings match your user
+- Ensure sufficient disk space
 
 ## 📊 Monitoring
 

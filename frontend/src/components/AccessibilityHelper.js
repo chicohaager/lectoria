@@ -1,6 +1,6 @@
 // AccessibilityHelper.js - Accessibility utilities and skip navigation
 import React from 'react';
-import { Box, Link, Paper } from '@mui/material';
+import { Box, Link } from '@mui/material';
 
 function AccessibilityHelper() {
   // Skip links for keyboard navigation

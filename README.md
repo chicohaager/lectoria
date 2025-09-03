@@ -82,12 +82,24 @@ cd lectoria
 ```
 
 ### 2. Start with Docker
-```bash
-# Build and start containers
-docker-compose up --build
 
-# Run in background
+**Professional Docker Image with PUID/PGID Support:**
+```bash
+# Quick start with proper permissions
+docker run -d -p 3000:3000 \
+  -e PUID=1000 -e PGID=1000 \
+  -v lectoria_data:/app/data \
+  -v lectoria_uploads:/app/uploads \
+  chicohaager/lectoria:latest
+
+# Or use Docker Compose
 docker-compose up -d --build
+```
+
+**Environment Variables for File Permissions:**
+```bash
+PUID=1000  # Your user ID (run 'id' to find yours)
+PGID=1000  # Your group ID
 ```
 
 ### 3. Access Application

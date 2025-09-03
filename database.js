@@ -183,6 +183,17 @@ class Database {
                 )
             `);
 
+            // Create system_settings table
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    setting_key TEXT UNIQUE NOT NULL,
+                    setting_value TEXT,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    updated_at TEXT DEFAULT (datetime('now'))
+                )
+            `);
+
             // Create translations table
             await this.run(`
                 CREATE TABLE IF NOT EXISTS translations (
@@ -242,6 +253,20 @@ class Database {
                     adminData.role, adminData.must_change_password, adminData.is_active]);
                 
                 console.log('✅ Default admin user created (admin/admin123)');
+            }
+
+            // Initialize default system settings if none exist
+            const settingsCount = await this.get('SELECT COUNT(*) as count FROM system_settings');
+            if (settingsCount.count === 0) {
+                console.log('🔧 Creating default system settings...');
+                
+                // Default setting: Allow registration is enabled
+                await this.run(`
+                    INSERT INTO system_settings (setting_key, setting_value) 
+                    VALUES ('allow_registration', 'true')
+                `);
+                
+                console.log('✅ Default system settings created');
             }
 
             // Initialize default categories if none exist

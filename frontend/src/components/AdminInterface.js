@@ -35,7 +35,6 @@ import {
   Card,
   CardContent,
   CardActions,
-  Fab,
   Snackbar,
 } from '@mui/material';
 import {
@@ -50,15 +49,13 @@ import {
   CheckCircle,
   Cancel,
   Person,
-  ColorLens,
-  Save,
-  Close,
   CloudDownload,
   FolderOpen,
   Backup,
   CloudUpload,
   GetApp,
   RestorePage,
+  Settings,
 } from '@mui/icons-material';
 import api from '../services/api';
 
@@ -81,7 +78,7 @@ function AdminInterface() {
   const [tabValue, setTabValue] = useState(0);
   const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // eslint-disable-line no-unused-vars
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
@@ -131,6 +128,10 @@ function AdminInterface() {
   });
   const [restoreUploading, setRestoreUploading] = useState(false);
 
+  // System Settings States
+  const [systemSettings, setSystemSettings] = useState({ allow_registration: true });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
   const iconOptions = [
     'folder', 'auto_stories', 'school', 'article', 'science', 
     'engineering', 'restaurant', 'sports_esports', 'music_note', 
@@ -142,6 +143,8 @@ function AdminInterface() {
     loadUsers();
     loadCategories();
     loadBackups();
+    loadSystemSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUsers = async () => {
@@ -448,6 +451,30 @@ function AdminInterface() {
     setError('');
   };
 
+  const loadSystemSettings = async () => {
+    try {
+      const response = await api.get('/api/settings');
+      setSystemSettings(response.data);
+    } catch (err) {
+      console.error('Failed to load system settings:', err);
+    }
+  };
+
+  const handleSystemSettingsChange = async (settingKey, value) => {
+    try {
+      setSettingsLoading(true);
+      const updatedSettings = { ...systemSettings, [settingKey]: value };
+      
+      await api.put('/api/settings', updatedSettings);
+      setSystemSettings(updatedSettings);
+      setSuccess(t('admin.settingsUpdated') || 'Settings updated successfully');
+    } catch (err) {
+      setError(err.response?.data?.error || t('admin.errorUpdatingSettings') || 'Error updating settings');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     
@@ -514,6 +541,7 @@ function AdminInterface() {
           <Tab icon={<Category />} label={t('admin.tabCategories')} />
           <Tab icon={<CloudDownload />} label={t('admin.tabCalibreImport')} />
           <Tab icon={<Backup />} label={t('admin.tabBackupRestore')} />
+          <Tab icon={<Settings />} label={t('admin.tabSettings')} />
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
@@ -683,9 +711,15 @@ function AdminInterface() {
                         </Box>
                       </Avatar>
                       <Box>
-                        <Typography variant="h6">{category.name}</Typography>
+                        <Typography variant="h6">
+                          {language === 'en' && t('admin.categoryNames.' + category.name) 
+                            ? t('admin.categoryNames.' + category.name) 
+                            : category.name}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {category.description || t('admin.noDescription')}
+                          {language === 'en' && t('admin.categoryNames.' + category.description)
+                            ? t('admin.categoryNames.' + category.description)
+                            : (category.description || t('admin.noDescription'))}
                         </Typography>
                       </Box>
                     </Box>
@@ -878,6 +912,39 @@ function AdminInterface() {
                   </Table>
                 </TableContainer>
               )}
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={4}>
+          {/* System Settings */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              {t('admin.systemSettings')}
+            </Typography>
+            <Typography variant="body1" paragraph>
+              {t('admin.systemSettingsDescription')}
+            </Typography>
+          </Box>
+
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                {t('admin.registrationSettings')}
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={systemSettings.allow_registration}
+                    onChange={(e) => handleSystemSettingsChange('allow_registration', e.target.checked)}
+                    disabled={settingsLoading}
+                  />
+                }
+                label={t('admin.allowRegistration')}
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {t('admin.allowRegistrationDescription')}
+              </Typography>
             </CardContent>
           </Card>
         </TabPanel>

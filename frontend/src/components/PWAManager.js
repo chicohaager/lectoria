@@ -34,7 +34,6 @@ import {
   setupPWAInstall,
   showPWAInstallPrompt,
   isStandalone,
-  canInstall,
   setupNetworkListener,
   clearCache,
   getCacheSize,
