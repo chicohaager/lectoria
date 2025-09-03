@@ -1,8 +1,39 @@
 version: '3.8'
 
 services:
+  # JWT Secret Generation Init Container
+  # Generates secure JWT_SECRET only once and stores it persistently
+  jwt-init:
+    image: alpine:latest
+    container_name: lectoria-jwt-init
+    volumes:
+      - type: bind
+        source: /DATA/AppData/lectoria/secrets
+        target: /secrets
+    command: |
+      sh -c "
+        echo '🔐 JWT Secret Initialization...'
+        mkdir -p /secrets
+        if [ ! -f /secrets/jwt_secret ]; then
+          echo '📝 Generating new JWT_SECRET (first run)'
+          apk add --no-cache openssl
+          openssl rand -base64 64 > /secrets/jwt_secret
+          chmod 600 /secrets/jwt_secret
+          chown 1000:1000 /secrets/jwt_secret
+          echo '✅ JWT_SECRET generated and secured'
+        else
+          echo '📝 JWT_SECRET already exists, skipping generation'
+        fi
+        echo '🎯 JWT initialization complete'
+      "
+    restart: "no"
+    user: root  # Needed for chown operation
+
   lectoria:
     image: chicohaager/lectoria:latest
+    depends_on:
+      jwt-init:
+        condition: service_completed_successfully
     # Alternative: Build locally (uses main Dockerfile with PUID/PGID support)
     # build:
     #   context: .
@@ -14,9 +45,9 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      # JWT_SECRET - provide your own secret or use the generated one below
-      # Generate a secure secret: openssl rand -base64 64
-      - JWT_SECRET=${JWT_SECRET:-lectoria-zimaos-jwt-secret-2024-change-me}
+      # JWT_SECRET automatically generated and read from Docker Secrets
+      # No manual configuration required - always secure auto-generation
+      - JWT_SECRET_FILE=/run/secrets/jwt_secret
       - PORT=3000
       - DB_PATH=/app/data/lectoria.db
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
@@ -36,13 +67,47 @@ services:
       - type: bind
         source: /DATA/AppData/lectoria/logs
         target: /app/logs
+      # Secure JWT secrets (read-only for main container)
+      - type: bind
+        source: /DATA/AppData/lectoria/secrets
+        target: /app/secrets
+        read_only: true
+    secrets:
+      - jwt_secret
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /var/tmp:noexec,nosuid,size=50m
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000", "||", "exit", "1"]
+      test: |
+        if [ -f /run/secrets/jwt_secret ]; then
+          JWT_SECRET_VALUE=$$(cat /run/secrets/jwt_secret)
+        elif [ -f /app/secrets/jwt_secret ]; then
+          JWT_SECRET_VALUE=$$(cat /app/secrets/jwt_secret)
+        else
+          JWT_SECRET_VALUE="$$JWT_SECRET"
+        fi
+        
+        if [ -z "$$JWT_SECRET_VALUE" ] || [ "$$JWT_SECRET_VALUE" = "lectoria-zimaos-jwt-secret-2024-change-me" ]; then
+          echo "🚨 SECURITY WARNING: Using default or empty JWT_SECRET!"
+          exit 1
+        fi
+        
+        wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 45s
     networks:
       - lectoria-network
     logging:
@@ -51,20 +116,49 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Optional: Nginx für SSL/Reverse Proxy
-  # Uncomment if you need SSL/HTTPS support
+  # Enhanced Nginx Reverse Proxy with SSL Support
+  # Uncomment the entire nginx section if you need SSL/HTTPS support
   # nginx:
   #   image: nginx:alpine
   #   container_name: lectoria-nginx
   #   ports:
   #     - "80:80"
   #     - "443:443"
+  #   environment:
+  #     - NGINX_HOST=${DOMAIN:-localhost}
+  #     - NGINX_PORT=${NGINX_PORT:-80}
+  #     - BACKEND_HOST=lectoria
+  #     - BACKEND_PORT=3000
   #   volumes:
-  #     - /DATA/AppData/lectoria/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - /DATA/AppData/lectoria/ssl:/etc/nginx/ssl:ro
-  #     - /DATA/AppData/lectoria/www:/var/www/html:ro
+  #     - /DATA/AppData/lectoria/nginx/templates:/etc/nginx/templates:ro
+  #     - /DATA/AppData/lectoria/nginx/ssl:/etc/nginx/ssl:ro
+  #     - /DATA/AppData/lectoria/nginx/logs:/var/log/nginx
+  #   command: |
+  #     sh -c "
+  #       echo 'Setting up Nginx configuration...'
+  #       envsubst '$$NGINX_HOST $$NGINX_PORT $$BACKEND_HOST $$BACKEND_PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+  #       nginx -t && echo 'Nginx config valid' || echo 'Nginx config invalid'
+  #       exec nginx -g 'daemon off;'
+  #     "
   #   depends_on:
-  #     - lectoria
+  #     lectoria:
+  #       condition: service_healthy
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 128M
+  #         cpus: '0.2'
+  #       reservations:
+  #         memory: 64M
+  #   security_opt:
+  #     - no-new-privileges:true
+  #   networks:
+  #     - lectoria-network
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:$$NGINX_PORT/health", "||", "exit", "1"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
   #   networks:
   #     - lectoria-network
   #   restart: unless-stopped
@@ -73,6 +167,11 @@ services:
   #     options:
   #       max-size: "5m"
   #       max-file: "2"
+
+# Docker Secrets for enhanced security
+secrets:
+  jwt_secret:
+    file: /DATA/AppData/lectoria/secrets/jwt_secret
 
 networks:
   lectoria-network:
