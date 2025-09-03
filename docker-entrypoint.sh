@@ -14,30 +14,38 @@ PGID=${PGID:-$DEFAULT_PGID}
 
 echo "🔧 Starting Lectoria with PUID=$PUID and PGID=$PGID"
 
-# JWT_SECRET auto-generation (LinuxServer.io pattern)
-JWT_SECRET_FILE="/app/data/.jwt-secret"
-
-if [ -z "$JWT_SECRET" ]; then
-    if [ -f "$JWT_SECRET_FILE" ]; then
+# JWT_SECRET handling with support for file-based secrets
+# Check if JWT_SECRET_FILE is specified (Docker Secrets pattern)
+if [ -n "$JWT_SECRET_FILE" ] && [ -f "$JWT_SECRET_FILE" ]; then
+    echo "🔐 Loading JWT_SECRET from file: $JWT_SECRET_FILE"
+    JWT_SECRET=$(cat "$JWT_SECRET_FILE")
+    export JWT_SECRET
+    echo "✅ JWT_SECRET loaded from file successfully"
+elif [ -z "$JWT_SECRET" ]; then
+    # Fallback to auto-generation (LinuxServer.io pattern)
+    JWT_SECRET_STORAGE="/app/data/.jwt-secret"
+    
+    if [ -f "$JWT_SECRET_STORAGE" ]; then
         echo "📝 Loading existing JWT_SECRET from persistent storage"
-        JWT_SECRET=$(cat "$JWT_SECRET_FILE")
+        JWT_SECRET=$(cat "$JWT_SECRET_STORAGE")
     else
         echo "🔐 Generating new JWT_SECRET (first run)"
         # Generate secure 64-character random string
         JWT_SECRET=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 64)
-        mkdir -p "$(dirname "$JWT_SECRET_FILE")"
-        echo "$JWT_SECRET" > "$JWT_SECRET_FILE"
-        chmod 600 "$JWT_SECRET_FILE"
+        mkdir -p "$(dirname "$JWT_SECRET_STORAGE")"
+        echo "$JWT_SECRET" > "$JWT_SECRET_STORAGE"
+        chmod 600 "$JWT_SECRET_STORAGE"
         echo "✅ JWT_SECRET generated and saved to persistent storage"
     fi
     export JWT_SECRET
 else
     echo "🔐 Using provided JWT_SECRET from environment"
     # Save provided secret to persistent storage for consistency
-    if [ ! -f "$JWT_SECRET_FILE" ]; then
-        mkdir -p "$(dirname "$JWT_SECRET_FILE")"
-        echo "$JWT_SECRET" > "$JWT_SECRET_FILE"
-        chmod 600 "$JWT_SECRET_FILE"
+    JWT_SECRET_STORAGE="/app/data/.jwt-secret"
+    if [ ! -f "$JWT_SECRET_STORAGE" ]; then
+        mkdir -p "$(dirname "$JWT_SECRET_STORAGE")"
+        echo "$JWT_SECRET" > "$JWT_SECRET_STORAGE"
+        chmod 600 "$JWT_SECRET_STORAGE"
         echo "✅ JWT_SECRET saved to persistent storage"
     fi
 fi
