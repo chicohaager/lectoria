@@ -99,6 +99,12 @@ function EnhancedDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, searchTerm, filterType, filterCategory]);
 
+  // Reload categories when language changes
+  useEffect(() => {
+    loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
   const loadCategories = async () => {
     try {
       const response = await api.get(`/api/categories/translated?lang=${language}`);
