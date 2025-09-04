@@ -162,10 +162,19 @@ function PWAManager({ showInstallButton = true }) {
       {shouldShowInstallButton && (
         <Button
           variant="outlined"
+          color="primary"
           startIcon={<InstallMobile />}
           onClick={() => setShowInstallDialog(true)}
           size="small"
-          sx={{ ml: 1 }}
+          sx={{ 
+            ml: 1,
+            borderColor: 'primary.main',
+            color: 'primary.main',
+            '&:hover': {
+              borderColor: 'primary.dark',
+              backgroundColor: 'action.hover'
+            }
+          }}
         >
           {t('pwa.installButton')}
         </Button>

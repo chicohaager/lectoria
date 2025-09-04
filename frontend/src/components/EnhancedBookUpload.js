@@ -27,7 +27,7 @@ import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 
 function EnhancedBookUpload() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [file, setFile] = useState(null);
   const [coverImage, setCoverImage] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
@@ -54,7 +54,7 @@ function EnhancedBookUpload() {
 
   const loadCategories = async () => {
     try {
-      const response = await api.get('/api/categories');
+      const response = await api.get(`/api/categories/translated?lang=${language}`);
       setCategories(response.data);
     } catch (err) {
       console.error('Error loading categories:', err);

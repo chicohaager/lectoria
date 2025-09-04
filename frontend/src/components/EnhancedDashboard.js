@@ -53,7 +53,7 @@ import {
 import api from '../services/api';
 
 function EnhancedDashboard() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +101,7 @@ function EnhancedDashboard() {
 
   const loadCategories = async () => {
     try {
-      const response = await api.get('/api/categories');
+      const response = await api.get(`/api/categories/translated?lang=${language}`);
       setCategories(response.data);
     } catch (err) {
       console.error('Fehler beim Laden der Kategorien:', err);

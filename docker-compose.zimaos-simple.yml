@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  lectoria:
+    image: chicohaager/lectoria:latest
+    container_name: lectoria
+    ports:
+      - "3000:3000"
+    environment:
+      # Basic Configuration
+      - NODE_ENV=production
+      - PORT=3000
+      
+      # JWT Secret - Will be auto-generated if not provided
+      # For ZimaOS GUI: Leave empty for auto-generation or add your own
+      - JWT_SECRET=${JWT_SECRET}
+      
+      # Database Path
+      - DB_PATH=/app/data/lectoria.db
+      
+      # Optional Configuration
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-70485760}
+      - MAX_IMAGE_SIZE=${MAX_IMAGE_SIZE:-5242880}
+      
+      # User/Group ID for proper file permissions
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      
+    volumes:
+      # Simple volume mappings for ZimaOS
+      - /DATA/AppData/lectoria/data:/app/data
+      - /DATA/AppData/lectoria/uploads:/app/uploads
+      - /DATA/AppData/lectoria/logs:/app/logs
+      
+    restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 45s
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
