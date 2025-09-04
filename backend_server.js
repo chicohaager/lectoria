@@ -416,10 +416,10 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
       user: { id: userId, username, email, role: 'user' }
     });
   } catch (error) {
-    if (error.code === 'SQLITE_CONSTRAINT' || error.message.includes('UNIQUE')) { // SQLite unique constraint violation
+    console.error('Registration error details:', error);
+    if (error.code === 'SQLITE_CONSTRAINT' || error.message?.includes('UNIQUE')) { // SQLite unique constraint violation
       return res.status(400).json({ error: 'Benutzername oder E-Mail bereits vorhanden' });
     }
-    console.error('Registration error:', error);
     res.status(500).json({ error: 'Registrierung fehlgeschlagen' });
   }
 });
@@ -669,9 +669,13 @@ app.post('/api/books/:id/share', authenticateToken, async (req, res) => {
       expires_at: expiresAt
     });
 
+    // Properly detect HTTPS (consider proxies)
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('host');
+    
     res.status(201).json({
       shareToken,
-      shareUrl: `${req.protocol}://${req.get('host')}/share/${shareToken}`,
+      shareUrl: `${protocol === 'http' && host !== 'localhost' && !host.startsWith('localhost:') ? 'https' : protocol}://${host}/share/${shareToken}`,
       expiresAt,
       message: 'Freigabe-Link erfolgreich erstellt'
     });
@@ -698,9 +702,14 @@ app.get('/api/books/:id/shares', authenticateToken, async (req, res) => {
 
     const shares = await database.getShareLinksForBook(bookId);
     
+    // Properly detect HTTPS (consider proxies)
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('host');
+    const finalProtocol = protocol === 'http' && host !== 'localhost' && !host.startsWith('localhost:') ? 'https' : protocol;
+    
     res.json(shares.map(share => ({
       ...share,
-      shareUrl: `${req.protocol}://${req.get('host')}/share/${share.share_token}`
+      shareUrl: `${finalProtocol}://${host}/share/${share.share_token}`
     })));
   } catch (error) {
     console.error('Error fetching share links:', error);
