@@ -276,6 +276,9 @@ class Database {
                 await this.initializeDefaultCategories();
             }
 
+            // Add English translations for existing categories (migration)
+            await this.addEnglishTranslationsIfMissing();
+
             return true;
         } catch (error) {
             console.error('💥 Database initialization failed:', error);
@@ -285,17 +288,116 @@ class Database {
 
     async initializeDefaultCategories() {
         const defaultCategories = [
-            { name: 'Romane', description: 'Belletristik und Unterhaltung', color: '#4CAF50', icon: 'book' },
-            { name: 'Sachbücher', description: 'Fach- und Sachbücher', color: '#2196F3', icon: 'school' },
-            { name: 'Wissenschaft', description: 'Wissenschaftliche Publikationen', color: '#9C27B0', icon: 'science' },
-            { name: 'Geschichte', description: 'Historische Werke', color: '#795548', icon: 'history' },
-            { name: 'Biographien', description: 'Lebensbeschreibungen', color: '#FF9800', icon: 'person' },
-            { name: 'Kinderbücher', description: 'Literatur für Kinder', color: '#00BCD4', icon: 'child_care' },
-            { name: 'Comics', description: 'Graphic Novels und Comics', color: '#FFEB3B', icon: 'bubble_chart' },
-            { name: 'Technik', description: 'Technische Literatur', color: '#607D8B', icon: 'engineering' },
-            { name: 'Kochbücher', description: 'Rezepte und Kulinarisches', color: '#FF5722', icon: 'restaurant' },
-            { name: 'Zeitschriften', description: 'Magazine und Periodika', color: '#E91E63', icon: 'article' },
-            { name: 'Natur', description: 'alles zum Thema Natur', color: '#4CAF50', icon: 'nature' }
+            { 
+                name: 'Romane', 
+                description: 'Belletristik und Unterhaltung', 
+                color: '#4CAF50', 
+                icon: 'book',
+                translations: {
+                    en: { name: 'Novels', description: 'Fiction and Entertainment' },
+                    de: { name: 'Romane', description: 'Belletristik und Unterhaltung' }
+                }
+            },
+            { 
+                name: 'Sachbücher', 
+                description: 'Fach- und Sachbücher', 
+                color: '#2196F3', 
+                icon: 'school',
+                translations: {
+                    en: { name: 'Non-Fiction', description: 'Professional and Educational Books' },
+                    de: { name: 'Sachbücher', description: 'Fach- und Sachbücher' }
+                }
+            },
+            { 
+                name: 'Wissenschaft', 
+                description: 'Wissenschaftliche Publikationen', 
+                color: '#9C27B0', 
+                icon: 'science',
+                translations: {
+                    en: { name: 'Science', description: 'Scientific Publications' },
+                    de: { name: 'Wissenschaft', description: 'Wissenschaftliche Publikationen' }
+                }
+            },
+            { 
+                name: 'Geschichte', 
+                description: 'Historische Werke', 
+                color: '#795548', 
+                icon: 'history',
+                translations: {
+                    en: { name: 'History', description: 'Historical Works' },
+                    de: { name: 'Geschichte', description: 'Historische Werke' }
+                }
+            },
+            { 
+                name: 'Biographien', 
+                description: 'Lebensbeschreibungen', 
+                color: '#FF9800', 
+                icon: 'person',
+                translations: {
+                    en: { name: 'Biographies', description: 'Life Stories' },
+                    de: { name: 'Biographien', description: 'Lebensbeschreibungen' }
+                }
+            },
+            { 
+                name: 'Kinderbücher', 
+                description: 'Literatur für Kinder', 
+                color: '#00BCD4', 
+                icon: 'child_care',
+                translations: {
+                    en: { name: 'Children\'s Books', description: 'Literature for Children' },
+                    de: { name: 'Kinderbücher', description: 'Literatur für Kinder' }
+                }
+            },
+            { 
+                name: 'Comics', 
+                description: 'Graphic Novels und Comics', 
+                color: '#FFEB3B', 
+                icon: 'bubble_chart',
+                translations: {
+                    en: { name: 'Comics', description: 'Graphic Novels and Comics' },
+                    de: { name: 'Comics', description: 'Graphic Novels und Comics' }
+                }
+            },
+            { 
+                name: 'Technik', 
+                description: 'Technische Literatur', 
+                color: '#607D8B', 
+                icon: 'engineering',
+                translations: {
+                    en: { name: 'Technology', description: 'Technical Literature' },
+                    de: { name: 'Technik', description: 'Technische Literatur' }
+                }
+            },
+            { 
+                name: 'Kochbücher', 
+                description: 'Rezepte und Kulinarisches', 
+                color: '#FF5722', 
+                icon: 'restaurant',
+                translations: {
+                    en: { name: 'Cookbooks', description: 'Recipes and Culinary' },
+                    de: { name: 'Kochbücher', description: 'Rezepte und Kulinarisches' }
+                }
+            },
+            { 
+                name: 'Zeitschriften', 
+                description: 'Magazine und Periodika', 
+                color: '#E91E63', 
+                icon: 'article',
+                translations: {
+                    en: { name: 'Magazines', description: 'Magazines and Periodicals' },
+                    de: { name: 'Zeitschriften', description: 'Magazine und Periodika' }
+                }
+            },
+            { 
+                name: 'Natur', 
+                description: 'alles zum Thema Natur', 
+                color: '#4CAF50', 
+                icon: 'nature',
+                translations: {
+                    en: { name: 'Nature', description: 'Everything about Nature' },
+                    de: { name: 'Natur', description: 'alles zum Thema Natur' }
+                }
+            }
         ];
 
         for (const category of defaultCategories) {
@@ -305,14 +407,64 @@ class Database {
                 VALUES (?, ?, ?, ?, ?)
             `, [id, category.name, category.description, category.color, category.icon]);
 
-            // Add translations
-            await this.run(`
-                INSERT INTO category_translations (category_id, language, name, description) 
-                VALUES (?, 'de', ?, ?)
-            `, [id, category.name, category.description]);
+            // Add translations for multiple languages
+            for (const [lang, translation] of Object.entries(category.translations)) {
+                await this.run(`
+                    INSERT INTO category_translations (category_id, language, name, description) 
+                    VALUES (?, ?, ?, ?)
+                `, [id, lang, translation.name, translation.description]);
+            }
         }
 
         console.log('✅ Default categories created');
+    }
+
+    // Migration function to add English translations to existing categories
+    async addEnglishTranslationsIfMissing() {
+        try {
+            // Check if we already have English translations
+            const existingEnTranslations = await this.get(
+                'SELECT COUNT(*) as count FROM category_translations WHERE language = ?',
+                ['en']
+            );
+
+            if (existingEnTranslations.count > 0) {
+                console.log('✅ English translations already exist');
+                return;
+            }
+
+            console.log('🔧 Adding English translations for existing categories...');
+
+            // English translation map for default German categories
+            const translationMap = {
+                'Romane': 'Novels',
+                'Sachbücher': 'Non-Fiction', 
+                'Wissenschaft': 'Science',
+                'Geschichte': 'History',
+                'Biographien': 'Biographies',
+                'Kinderbücher': 'Children\'s Books',
+                'Comics': 'Comics',
+                'Technik': 'Technology',
+                'Kochbücher': 'Cookbooks',
+                'Zeitschriften': 'Magazines',
+                'Natur': 'Nature'
+            };
+
+            const categories = await this.all('SELECT * FROM categories');
+
+            for (const category of categories) {
+                const englishName = translationMap[category.name] || category.name;
+                
+                await this.run(`
+                    INSERT OR IGNORE INTO category_translations (category_id, language, name, description) 
+                    VALUES (?, 'en', ?, ?)
+                `, [category.id, englishName, category.description]);
+            }
+
+            console.log('✅ English translations added for existing categories');
+        } catch (error) {
+            console.error('Error adding English translations:', error);
+        }
     }
 
     // User management functions

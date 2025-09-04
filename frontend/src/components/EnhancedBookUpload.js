@@ -50,7 +50,14 @@ function EnhancedBookUpload() {
 
   useEffect(() => {
     loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reload categories when language changes
+  useEffect(() => {
+    loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
 
   const loadCategories = async () => {
     try {
